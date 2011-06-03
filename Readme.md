@@ -21,8 +21,17 @@ index.ajs:
   <h1>Hello world.</h1>
   <% } %>
 
-  <% include('includes/two') %>
-
+  <!-- callbacks are flushed to the proper location in the template
+       when they return, but callbacks can't be nested -->
+       
+  <p>
+    <% setTimeout(function() { %>
+    <%= 'async 1 done' %>
+    <% }, 2000 ) %>
+  </p>
+  
+  <!-- underscore.js functions are exempt from nested callback restriction. -->
+  
   <ul>
     <% _.each(['one', 'two', 'three'], function(item) { %>
       <% _.each(['one2', 'two2', 'three2'], function(item2) { %>
@@ -31,19 +40,20 @@ index.ajs:
       <% }); %>
     <% }); %>
   </ul>
-  underscore.js loops are exempt from nested callback restriction.
   
-  <p>
-    <% setTimeout(function() { %>
-    <%= 'async 1 done' %>
-    <% }, 2000 ) %>
-  </p>
+  <!-- named callback functions work too. -->
   
   <p>
     <% setTimeout(async2, 200) %>
   </p>
 
+  <!-- callbacks can be used multiple times -->
+  
   <% setTimeout(async2, 200) %>
+  
+  <!-- other AJS partials can be embedded using the "include" function -->
+  
+  <% include('includes/two') %>
   
   <p><%= 'AJS is a strict superset of javascript - ' + (6 + 6) %></p>
 </body>
