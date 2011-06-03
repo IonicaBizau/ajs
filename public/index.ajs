@@ -1,0 +1,45 @@
+<% var _ = require('underscore') %>
+
+<% var async2 = function() { %>
+  <div><%= 'async 2 done' %></div>
+<% } %>
+
+<html>
+<head>
+</head>
+<body>
+  <% if(false) { %>
+  <h1>Hidden.</h1>
+  <% } %>
+
+  <% if(true) { %>
+  <h1>Hello world.</h1>
+  <% } %>
+
+  <% include('includes/two') %>
+
+  <ul>
+    <% _.each(['one', 'two', 'three'], function(item) { %>
+      <% _.each(['one2', 'two2', 'three2'], function(item2) { %>
+      <li><%= item %></li>
+      <li><%= item2 %></li>
+      <% }); %>
+    <% }); %>
+  </ul>
+  underscore.js loops are exempt from nested callback restriction.
+  
+  <p>
+    <% setTimeout(function() { %>
+    <%= 'async 1 done' %>
+    <% }, 2000 ) %>
+  </p>
+  
+  <p>
+    <% setTimeout(async2, 200) %>
+  </p>
+
+  <% setTimeout(async2, 200) %>
+  
+  <p><%= 'async is good - ' + (6 + 6) %></p>
+</body>
+</html>
