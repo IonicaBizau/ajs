@@ -25,7 +25,7 @@
   <p>
     <% setTimeout(function() { %>
     <%= 'async 1 done' %>
-    <% }, 1000 ) %>
+    <% }, 500 ) %>
   </p>
   
   <!-- underscore.js functions are exempt from the
@@ -33,7 +33,7 @@
   
   <ul>
     <% _.each(['one', 'two', 'three'], function(item) { %>
-      <% _.each(['one2', 'two2', 'three2'], function(item2) { %>
+      <% _.each(['nested'], function(item2) { %>
       <li><%= item %></li>
       <li><%= item2 %></li>
       <% }); %>
@@ -48,7 +48,7 @@
 
   <!-- callbacks can be used multiple times -->
   
-  <% setTimeout(async2, 200) %>
+  <% setTimeout(async2, 1000) %>
   
   <!-- other AJS partials can be embedded using the "include" function -->
   

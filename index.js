@@ -1,6 +1,6 @@
 var path     = require('path')
   , connect  = require('connect')
-  , nope     = require('./lib/ajs').Middleware;
+  , ajs     = require('./lib/ajs').Middleware;
 
 require.paths.unshift('./public');
 
