@@ -1,13 +1,16 @@
-<% var _ = require('underscore') %>
-
-<% var async2 = function() { %>
-  <div><%= 'async 2 done' %></div>
-<% } %>
-
 <html>
 <head>
 </head>
 <body>
+  
+  <!-- AJS is a strict superset of javascript, so require 
+       and variable assignment work as expected -->
+  
+  <% var _ = require('underscore')
+   , async2 = function() { %>
+  <div><%= 'async 2 done' %></div>
+  <% } %>
+  
   <% if(false) { %>
   <h1>Hidden.</h1>
   <% } %>
@@ -16,8 +19,18 @@
   <h1>Hello world.</h1>
   <% } %>
 
-  <% include('includes/two') %>
-
+  <!-- callbacks are flushed to the proper location in the template
+       when they return, but callbacks can't be nested -->
+       
+  <p>
+    <% setTimeout(function() { %>
+    <%= 'async 1 done' %>
+    <% }, 2000 ) %>
+  </p>
+  
+  <!-- underscore.js functions are exempt from the
+       nested callback restriction. -->
+  
   <ul>
     <% _.each(['one', 'two', 'three'], function(item) { %>
       <% _.each(['one2', 'two2', 'three2'], function(item2) { %>
@@ -26,20 +39,21 @@
       <% }); %>
     <% }); %>
   </ul>
-  underscore.js loops are exempt from nested callback restriction.
   
-  <p>
-    <% setTimeout(function() { %>
-    <%= 'async 1 done' %>
-    <% }, 2000 ) %>
-  </p>
+  <!-- named callback functions work too. -->
   
   <p>
     <% setTimeout(async2, 200) %>
   </p>
 
+  <!-- callbacks can be used multiple times -->
+  
   <% setTimeout(async2, 200) %>
   
-  <p><%= 'async is good - ' + (6 + 6) %></p>
+  <!-- other AJS partials can be embedded using the "include" function -->
+  
+  <% include('includes/two') %>
+  
+  <p><%= 'any statement can be written to the template - ' + (6 + 6) %></p>
 </body>
 </html>

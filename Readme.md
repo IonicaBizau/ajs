@@ -13,6 +13,15 @@ index.ajs:
 <head>
 </head>
 <body>
+  
+  <!-- AJS is a strict superset of javascript, so require 
+       and variable assignment work as expected -->
+  
+  <% var _ = require('underscore')
+   , async2 = function() { %>
+  <div><%= 'async 2 done' %></div>
+  <% } %>
+  
   <% if(false) { %>
   <h1>Hidden.</h1>
   <% } %>
@@ -30,7 +39,8 @@ index.ajs:
     <% }, 2000 ) %>
   </p>
   
-  <!-- underscore.js functions are exempt from nested callback restriction. -->
+  <!-- underscore.js functions are exempt from the
+       nested callback restriction. -->
   
   <ul>
     <% _.each(['one', 'two', 'three'], function(item) { %>
@@ -55,9 +65,10 @@ index.ajs:
   
   <% include('includes/two') %>
   
-  <p><%= 'AJS is a strict superset of javascript - ' + (6 + 6) %></p>
+  <p><%= 'any statement can be written to the template - ' + (6 + 6) %></p>
 </body>
 </html>
+
 ````
 
 Usage:

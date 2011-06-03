@@ -1,11 +1,11 @@
-var Nope    = require('../lib/ajs')
+var AJS    = require('../lib/ajs')
   , util    = require('util')
   , AjsVM  = require('../lib/ajs_vm');
 
 var i = 0
   , REPS = 10000
   , start = new Date()
-  , compiled = Nope.compile("\nOne, two <%= 6+12; // comments %>. More... <%= params.try %>");
+  , compiled = AJS.compile("\nOne, two <%= 6+12; // comments %>. More... <%= params.try %>");
 
 console.log('compiled source: ');
 console.log();
