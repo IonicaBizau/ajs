@@ -1,11 +1,7 @@
-<%= "I'm in two!" %>
-
-<br/>
+<p><%= "I'm in two!" %></p>
 
 <% include('three') %>
 
-<br/>
-
 <% setTimeout(function() { %>
-<%= 'async in two' %>
-<% }, 0 ) %>
+<p><%= 'async in two' %></p>
+<% }, 100 ) %>
