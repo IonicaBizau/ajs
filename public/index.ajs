@@ -25,7 +25,7 @@
   <p>
     <% setTimeout(function() { %>
     <%= 'async 1 done' %>
-    <% }, 2000 ) %>
+    <% }, 1000 ) %>
   </p>
   
   <!-- underscore.js functions are exempt from the
@@ -43,7 +43,7 @@
   <!-- named callback functions work too. -->
   
   <p>
-    <% setTimeout(async2, 200) %>
+    <% setTimeout(async2, 1000) %>
   </p>
 
   <!-- callbacks can be used multiple times -->

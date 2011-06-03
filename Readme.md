@@ -36,7 +36,7 @@ index.ajs:
   <p>
     <% setTimeout(function() { %>
     <%= 'async 1 done' %>
-    <% }, 2000 ) %>
+    <% }, 1000 ) %>
   </p>
   
   <!-- underscore.js functions are exempt from the
@@ -54,7 +54,7 @@ index.ajs:
   <!-- named callback functions work too. -->
   
   <p>
-    <% setTimeout(async2, 200) %>
+    <% setTimeout(async2, 1000) %>
   </p>
 
   <!-- callbacks can be used multiple times -->
@@ -79,7 +79,7 @@ For now, there's a binary that simply prints the result to stdout:
 $ ajs index.ajs
 ````
 
-Use the -t and -s options to view the abstracted syntax tree and compiled source respectively:
+Use the -t and -s options to view the abstracted syntax tree and compiled source:
 
 ```` bash
 $ ajs -t index.ajs
