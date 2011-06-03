@@ -8,7 +8,7 @@
 
 index.ajs:
 
-```` ejs
+```` erb
 <html>
 <head>
 </head>
@@ -53,7 +53,7 @@ index.ajs:
 Usage:
 
 ```` bash
-> ajs index.ajs
+$ ajs index.ajs
 ````
 
     
