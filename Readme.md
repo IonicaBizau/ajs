@@ -71,10 +71,21 @@ index.ajs:
 
 ````
 
-Usage:
+## Usage
+
+For now, there's a binary that simply prints the result to stdout:
 
 ```` bash
 $ ajs index.ajs
+````
+
+Use the -t and -s options to view the abstracted syntax tree and compiled source respectively:
+
+```` bash
+$ ajs -t index.ajs
+  ...
+$ ajs -s index.ajs
+  ...
 ````
 
     
