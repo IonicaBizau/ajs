@@ -52,8 +52,8 @@
   
   <!-- other AJS partials can be embedded using the "include" function -->
   
-  <% include('includes/two') %>
+  <% include('includes/partial') %>
   
-  <p><%= 'any statement can be written to the template - ' + (6 + 6) %></p>
+  <p><%= 'any statement can be written - ' + (6 + 6) %></p>
 </body>
 </html>

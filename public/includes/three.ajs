@@ -1,5 +1,0 @@
-<p><%= "I'm in three!" %></p>
-
-<% setTimeout(function() { %>
-<p><%= 'async in three' %></p>
-<% }, 100 ) %>
