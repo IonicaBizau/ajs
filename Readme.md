@@ -10,63 +10,69 @@ index.ajs:
 
 ```` erb
 <html>
-<head>
-</head>
-<body>
+  <head>
+  </head>
+  <body>
   
-  <!-- AJS is a strict superset of javascript, so require 
-       and variable assignment work as expected -->
+    <!-- AJS is a strict superset of javascript, so require 
+         and variable assignment work as expected -->
   
-  <% var _ = require('underscore')
-   , async2 = function() { %>
-  <div><%= 'async 2 done' %></div>
-  <% } %>
+    <% var _ = require('underscore')
+     , async2 = function() { %>
+    <div><%= 'async 2 done' %></div>
+    <% } %>
   
-  <% if(false) { %>
-  <h1>Hidden.</h1>
-  <% } %>
+    <% if(false) { %>
+    <h1>Hidden.</h1>
+    <% } %>
 
-  <% if(true) { %>
-  <h1>Hello world.</h1>
-  <% } %>
+    <% if(true) { %>
+    <h1>Hello world.</h1>
+    <% } %>
 
-  <!-- callbacks are flushed to the proper location in the template
-       when they return, but callbacks can't be nested -->
-       
-  <p>
-    <% setTimeout(function() { %>
-    <%= 'async 1 done' %>
-    <% }, 1000 ) %>
-  </p>
+    <% for(i=1; i<5; i++) { %>
+      <%= "next: " + i  + "<br/>" %>
+    <% } %>
+
+    <!-- callbacks are flushed to the proper location in the template
+         when they return, but they can't be nested -->
+    
+    <p>
+      <% setTimeout(function() { %>
+      <%= 'async 1 done' %>
+      <% }, 500 ) %>
+    </p>
   
-  <!-- underscore.js functions are exempt from the
-       nested callback restriction. -->
-  
-  <ul>
-    <% _.each(['one', 'two', 'three'], function(item) { %>
-      <% _.each(['one2', 'two2', 'three2'], function(item2) { %>
-      <li><%= item %></li>
-      <li><%= item2 %></li>
+    <!-- underscore.js functions are exempt from the
+         nested callback restriction. -->
+    
+    <ul>
+      <% _.each(['one', 'two', 'three'], function(item) { %>
+        <% _.each(['nested'], function(item2) { %>
+        <li><%= item %></li>
+        <li><%= item2 %></li>
+        <% }); %>
       <% }); %>
-    <% }); %>
-  </ul>
+    </ul>
   
-  <!-- named callback functions work too. -->
+    <!-- named callback functions work too.
+         a callback's output is inserted into the template at the 
+         spot where it was passed to it's async function -->
   
-  <p>
-    <% setTimeout(async2, 1000) %>
-  </p>
+    <p>
+      <% setTimeout(async2, 1000) %>
+    </p>
 
-  <!-- callbacks can be used multiple times -->
+    <!-- callbacks can be used multiple times -->
   
-  <% setTimeout(async2, 200) %>
+    <% setTimeout(async2, 1000) %>
   
-  <!-- other AJS partials can be embedded using the "include" function -->
+    <!-- other AJS partials can be embedded using the "include" function -->
   
-  <% include('includes/two') %>
+    <% include('includes/partial') %>
   
-  <p><%= 'any statement can be written to the template - ' + (6 + 6) %></p>
-</body>
+    <p><%= 'any statement can be written - ' + (6 + 6) %></p>
+  </body>
 </html>
 
 ````
