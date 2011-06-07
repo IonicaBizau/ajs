@@ -1,0 +1,472 @@
+<!DOCTYPE html>  <html> <head>   <title>lexer.js</title>   <meta http-equiv="content-type" content="text/html; charset=UTF-8">   <link rel="stylesheet" media="all" href="docco.css" /> </head> <body>   <div id="container">     <div id="background"></div>            <div id="jump_to">         Jump To &hellip;         <div id="jump_wrapper">           <div id="jump_page">                                           <a class="source" href="ajs.html">                 ajs.js               </a>                                           <a class="source" href="compiler.html">                 compiler.js               </a>                                           <a class="source" href="grammar.html">                 grammar.js               </a>                                           <a class="source" href="lexer.html">                 lexer.js               </a>                                           <a class="source" href="loader.html">                 loader.js               </a>                                           <a class="source" href="parser.html">                 parser.js               </a>                                           <a class="source" href="vm.html">                 vm.js               </a>                        </div>         </div>       </div>          <table cellpadding="0" cellspacing="0">       <thead>         <tr>           <th class="docs">             <h1>               lexer.js             </h1>           </th>           <th class="code">           </th>         </tr>       </thead>       <tbody>                               <tr id="section-1">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-1">&#182;</a>               </div>               <pre><code>AJS 0.0.1
+(c) 2011 Evan Owen, LifeKraze LLC.
+AJS may be freely distributed under the MIT license.
+For details and documentation:
+http://github.com/kainosnoema/ajs
+
+Thanks to mishoo/uglifyjs for most of this!
+</code></pre>             </td>             <td class="code">               <div class="highlight"><pre><span class="kd">var</span> <span class="nx">g</span>          <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;./grammar&#39;</span><span class="p">)</span>
+  <span class="p">,</span> <span class="nx">util</span>       <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;util&#39;</span><span class="p">);</span></pre></div>             </td>           </tr>                               <tr id="section-2">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-2">&#182;</a>               </div>               <h2>AJS Lexer</h2>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-3">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-3">&#182;</a>               </div>               <p>The lexer accepts raw AJS source and processes it character-by-character,
+creating token objects that can be interpreted by the parser to
+form an AST (abstract syntax tree).</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="kd">var</span> <span class="nx">Lexer</span> <span class="o">=</span> <span class="nx">module</span><span class="p">.</span><span class="nx">exports</span> <span class="o">=</span> <span class="kd">function</span> <span class="nx">Lexer</span><span class="p">(</span><span class="nx">source</span><span class="p">,</span> <span class="nx">opts</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">opts</span> <span class="o">=</span> <span class="nx">opts</span> <span class="o">||</span> <span class="p">{};</span>
+  
+  <span class="k">this</span><span class="p">.</span><span class="nx">source</span> <span class="o">=</span> <span class="nx">source</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">length</span> <span class="o">=</span> <span class="nx">source</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span>
+  
+  <span class="k">this</span><span class="p">.</span><span class="nx">tokens</span> <span class="o">=</span> <span class="p">[];</span>
+
+  <span class="k">this</span><span class="p">.</span><span class="nx">_curToken</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_line</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_col</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_pos</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  
+  <span class="k">this</span><span class="p">.</span><span class="nx">_embedChar</span> <span class="o">=</span> <span class="nx">opts</span><span class="p">.</span><span class="nx">embedChar</span> <span class="o">||</span> <span class="s2">&quot;%&quot;</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_includeComments</span> <span class="o">=</span> <span class="nx">opts</span><span class="p">.</span><span class="nx">includeComments</span> <span class="o">==</span> <span class="kc">true</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_newLineBefore</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_commentsBefore</span> <span class="o">=</span> <span class="p">[];</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_regexpAllowed</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">tokenize</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">tokens</span> <span class="o">=</span> <span class="p">[];</span>
+
+  <span class="k">this</span><span class="p">.</span><span class="nx">_curToken</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_line</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_col</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_pos</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  
+  <span class="k">this</span><span class="p">.</span><span class="nx">_inEmbed</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+
+  <span class="k">this</span><span class="p">.</span><span class="nx">nextToken</span><span class="p">();</span>
+  <span class="k">while</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_curToken</span><span class="p">.</span><span class="nx">type</span> <span class="o">!=</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">EOF</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">nextToken</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">tokens</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">nextToken</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_inEmbed</span><span class="p">)</span> <span class="k">this</span><span class="p">.</span><span class="nx">_skipWhitespace</span><span class="p">();</span>
+
+  <span class="kd">var</span> <span class="nx">ch</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_peek</span><span class="p">();</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">ch</span><span class="p">)</span> <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">EOF</span><span class="p">);</span>
+  
+  <span class="k">if</span><span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s1">&#39;&lt;&#39;</span> <span class="o">&amp;&amp;</span> <span class="k">this</span><span class="p">.</span><span class="nx">_peek</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="k">this</span><span class="p">.</span><span class="nx">_embedChar</span><span class="p">)</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_embed</span><span class="p">();</span>
+  <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_inEmbed</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">g</span><span class="p">.</span><span class="nx">is_digit</span><span class="p">(</span><span class="nx">ch</span><span class="p">))</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_number</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s1">&#39;&quot;&#39;</span> <span class="o">||</span> <span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">)</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_string</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">g</span><span class="p">.</span><span class="nx">is_punctuation</span><span class="p">(</span><span class="nx">ch</span><span class="p">))</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_punctuation</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;.&quot;</span><span class="p">)</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_dot</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_slash</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">g</span><span class="p">.</span><span class="nx">is_operator</span><span class="p">(</span><span class="nx">ch</span><span class="p">))</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="k">this</span><span class="p">.</span><span class="nx">_embedChar</span> <span class="o">&amp;&amp;</span> <span class="k">this</span><span class="p">.</span><span class="nx">_peek</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;&gt;&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_embed</span><span class="p">();</span>
+      <span class="k">else</span>
+        <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_operator</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;\\&quot;</span> <span class="o">||</span> <span class="nx">g</span><span class="p">.</span><span class="nx">is_identifier_start</span><span class="p">(</span><span class="nx">ch</span><span class="p">))</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_word</span><span class="p">();</span>
+
+    <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="s2">&quot;Unexpected character &#39;&quot;</span> <span class="o">+</span> <span class="nx">ch</span> <span class="o">+</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_output</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_peek</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">i</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">i</span> <span class="o">=</span> <span class="nx">i</span> <span class="o">||</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">source</span><span class="p">.</span><span class="nx">charAt</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_pos</span> <span class="o">+</span> <span class="nx">i</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_next</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">throwEof</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">ch</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">source</span><span class="p">.</span><span class="nx">charAt</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_pos</span><span class="o">++</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">throwEof</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">ch</span><span class="p">)</span> <span class="k">throw</span> <span class="nx">EX_EOF</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;\n&quot;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_newLineBefore</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_line</span><span class="o">++</span><span class="p">;</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_col</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_col</span><span class="o">++</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="nx">ch</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_skipWhitespace</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">while</span> <span class="p">(</span><span class="nx">g</span><span class="p">.</span><span class="nx">is_whitespace</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_peek</span><span class="p">()))</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_readWhile</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">pred</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">ret</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="nx">ch</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_peek</span><span class="p">(),</span> <span class="nx">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">while</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">&amp;&amp;</span> <span class="nx">pred</span><span class="p">(</span><span class="nx">ch</span><span class="p">,</span> <span class="nx">i</span><span class="o">++</span><span class="p">))</span> <span class="p">{</span>
+    <span class="nx">ret</span> <span class="o">+=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="nx">ch</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_peek</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="nx">ret</span><span class="p">;</span>
+<span class="p">};</span>
+
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_eof</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_peek</span><span class="p">();</span>
+<span class="p">};</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_find</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">ch</span><span class="p">,</span> <span class="nx">throwEof</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">pos</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">source</span><span class="p">.</span><span class="nx">indexOf</span><span class="p">(</span><span class="nx">ch</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_pos</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">throwEof</span> <span class="o">&amp;&amp;</span> <span class="nx">pos</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="k">throw</span> <span class="nx">EX_EOF</span><span class="p">;</span>
+  <span class="k">return</span> <span class="nx">pos</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_output</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_find</span><span class="p">(</span><span class="s2">&quot;&lt;&quot;</span> <span class="o">+</span> <span class="k">this</span><span class="p">.</span><span class="nx">_embedChar</span><span class="p">),</span> <span class="nx">text</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">i</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">text</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">source</span><span class="p">.</span><span class="nx">substr</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_pos</span><span class="p">);</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_pos</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">source</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="nx">text</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">source</span><span class="p">.</span><span class="nx">substring</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_pos</span><span class="p">,</span> <span class="nx">i</span><span class="p">);</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_pos</span> <span class="o">=</span> <span class="nx">i</span><span class="p">;</span>
+  <span class="p">}</span>
+  
+  <span class="k">this</span><span class="p">.</span><span class="nx">_line</span> <span class="o">+=</span> <span class="nx">text</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s2">&quot;\n&quot;</span><span class="p">).</span><span class="nx">length</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_newlineBefore</span> <span class="o">=</span> <span class="nx">text</span><span class="p">.</span><span class="nx">indexOf</span><span class="p">(</span><span class="s2">&quot;\n&quot;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">OUTPUT</span><span class="p">,</span> <span class="nx">text</span><span class="p">,</span> <span class="kc">true</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_embed</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">tag</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">()</span> <span class="o">+</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">()</span>
+    <span class="p">,</span> <span class="nx">ch</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_peek</span><span class="p">();</span>
+  <span class="k">if</span><span class="p">(</span><span class="nx">tag</span> <span class="o">==</span> <span class="s1">&#39;&lt;&#39;</span> <span class="o">+</span> <span class="k">this</span><span class="p">.</span><span class="nx">_embedChar</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_inEmbed</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+    <span class="k">if</span><span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s1">&#39;=&#39;</span><span class="p">)</span> <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">EMBED</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">());</span>
+    <span class="k">else</span> <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">nextToken</span><span class="p">();</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="nx">tag</span> <span class="o">==</span> <span class="k">this</span><span class="p">.</span><span class="nx">_embedChar</span> <span class="o">+</span> <span class="s1">&#39;&gt;&#39;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_inEmbed</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">nextToken</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="k">else</span> <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="s1">&#39;invalid embed token &quot;&#39;</span><span class="o">+</span> <span class="nx">word</span> <span class="o">+</span> <span class="s1">&#39;&quot;&#39;</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_punctuation</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">PUNCTUATION</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">());</span>
+<span class="p">}</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_number</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">prefix</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">hasE</span> <span class="o">=</span> <span class="kc">false</span><span class="p">,</span> <span class="nx">afterE</span> <span class="o">=</span> <span class="kc">false</span><span class="p">,</span> <span class="nx">hasX</span> <span class="o">=</span> <span class="kc">false</span><span class="p">,</span> <span class="nx">hasDot</span> <span class="o">=</span> <span class="p">(</span><span class="nx">prefix</span> <span class="o">==</span> <span class="s2">&quot;.&quot;</span><span class="p">);</span>
+  <span class="kd">var</span> <span class="nx">num</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_readWhile</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">ch</span><span class="p">,</span> <span class="nx">i</span><span class="p">){</span>
+    
+    <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;x&quot;</span> <span class="o">||</span> <span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;X&quot;</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nx">hasX</span><span class="p">)</span> <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
+            <span class="k">return</span> <span class="nx">hasX</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+    <span class="p">}</span>
+    
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">hasX</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;E&quot;</span> <span class="o">||</span> <span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;e&quot;</span><span class="p">))</span> <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nx">hasE</span><span class="p">)</span> <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
+            <span class="k">return</span> <span class="nx">hasE</span> <span class="o">=</span> <span class="nx">afterE</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+    <span class="p">}</span>
+    
+    <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;-&quot;</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nx">afterE</span> <span class="o">||</span> <span class="p">(</span><span class="nx">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">prefix</span><span class="p">))</span> <span class="k">return</span> <span class="kc">true</span><span class="p">;</span>
+            <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
+    <span class="p">}</span>
+    
+    <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;+&quot;</span><span class="p">)</span> <span class="k">return</span> <span class="nx">afterE</span><span class="p">;</span>
+    
+    <span class="nx">afterE</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;.&quot;</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">hasDot</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">hasX</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="nx">hasDot</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+            <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
+    <span class="p">}</span>
+    
+    <span class="k">return</span> <span class="nx">g</span><span class="p">.</span><span class="nx">is_alphanumeric</span><span class="p">(</span><span class="nx">ch</span><span class="p">);</span>
+  <span class="p">});</span>
+  
+  <span class="k">if</span> <span class="p">(</span><span class="nx">prefix</span><span class="p">)</span> <span class="nx">num</span> <span class="o">=</span> <span class="nx">prefix</span> <span class="o">+</span> <span class="nx">num</span><span class="p">;</span>
+  
+  <span class="kd">var</span> <span class="nx">valid</span> <span class="o">=</span> <span class="nx">parseJSNumber</span><span class="p">(</span><span class="nx">num</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nb">isNaN</span><span class="p">(</span><span class="nx">valid</span><span class="p">))</span> <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">NUMBER</span><span class="p">,</span> <span class="nx">valid</span><span class="p">);</span>
+  <span class="k">else</span> <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="s2">&quot;Invalid syntax: &quot;</span> <span class="o">+</span> <span class="nx">num</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_escapedChar</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">ch</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+  <span class="k">switch</span> <span class="p">(</span><span class="nx">ch</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">case</span> <span class="s2">&quot;n&quot;</span> <span class="o">:</span> <span class="k">return</span> <span class="s2">&quot;\n&quot;</span><span class="p">;</span>
+    <span class="k">case</span> <span class="s2">&quot;r&quot;</span> <span class="o">:</span> <span class="k">return</span> <span class="s2">&quot;\r&quot;</span><span class="p">;</span>
+    <span class="k">case</span> <span class="s2">&quot;t&quot;</span> <span class="o">:</span> <span class="k">return</span> <span class="s2">&quot;\t&quot;</span><span class="p">;</span>
+    <span class="k">case</span> <span class="s2">&quot;b&quot;</span> <span class="o">:</span> <span class="k">return</span> <span class="s2">&quot;\b&quot;</span><span class="p">;</span>
+    <span class="k">case</span> <span class="s2">&quot;v&quot;</span> <span class="o">:</span> <span class="k">return</span> <span class="s2">&quot;\v&quot;</span><span class="p">;</span>
+    <span class="k">case</span> <span class="s2">&quot;f&quot;</span> <span class="o">:</span> <span class="k">return</span> <span class="s2">&quot;\f&quot;</span><span class="p">;</span>
+    <span class="k">case</span> <span class="s2">&quot;0&quot;</span> <span class="o">:</span> <span class="k">return</span> <span class="s2">&quot;\0&quot;</span><span class="p">;</span>
+    <span class="k">case</span> <span class="s2">&quot;x&quot;</span> <span class="o">:</span> <span class="k">return</span> <span class="nb">String</span><span class="p">.</span><span class="nx">fromCharCode</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_hexBytes</span><span class="p">(</span><span class="mi">2</span><span class="p">));</span>
+    <span class="k">case</span> <span class="s2">&quot;u&quot;</span> <span class="o">:</span> <span class="k">return</span> <span class="nb">String</span><span class="p">.</span><span class="nx">fromCharCode</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_hexBytes</span><span class="p">(</span><span class="mi">4</span><span class="p">));</span>
+    <span class="k">default</span>  <span class="o">:</span> <span class="k">return</span> <span class="nx">ch</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_hexBytes</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">n</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">num</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">for</span> <span class="p">(;</span> <span class="nx">n</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">;</span> <span class="o">--</span><span class="nx">n</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">digit</span> <span class="o">=</span> <span class="nb">parseInt</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">(</span><span class="kc">true</span><span class="p">),</span> <span class="mi">16</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nb">isNaN</span><span class="p">(</span><span class="nx">digit</span><span class="p">))</span>
+      <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="s2">&quot;Invalid hex-character pattern in string&quot;</span><span class="p">);</span>
+    <span class="nx">num</span> <span class="o">=</span> <span class="p">(</span><span class="nx">num</span> <span class="o">&lt;&lt;</span> <span class="mi">4</span><span class="p">)</span> <span class="o">|</span> <span class="nx">digit</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="nx">num</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_string</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">self</span> <span class="o">=</span> <span class="k">this</span><span class="p">;</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_withEofError</span><span class="p">(</span><span class="s2">&quot;Unterminated string constant&quot;</span><span class="p">,</span> <span class="kd">function</span><span class="p">(){</span>
+    <span class="kd">var</span> <span class="nx">quote</span> <span class="o">=</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_next</span><span class="p">(),</span> <span class="nx">ret</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">;</span>
+    <span class="k">for</span> <span class="p">(;;)</span> <span class="p">{</span>
+      <span class="kd">var</span> <span class="nx">ch</span> <span class="o">=</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_next</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+      <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;\\&quot;</span><span class="p">)</span> <span class="nx">ch</span> <span class="o">=</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_escapedChar</span><span class="p">();</span>
+      <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="nx">quote</span><span class="p">)</span> <span class="k">break</span><span class="p">;</span>
+      <span class="nx">ret</span> <span class="o">+=</span> <span class="nx">ch</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">STRING</span><span class="p">,</span> <span class="nx">ret</span><span class="p">);</span>
+  <span class="p">});</span>
+<span class="p">}</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_comment</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+
+  <span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_find</span><span class="p">(</span><span class="s2">&quot;\n&quot;</span><span class="p">),</span> <span class="nx">ret</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">i</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">ret</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">source</span><span class="p">.</span><span class="nx">substr</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_pos</span><span class="p">);</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_pos</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">source</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">j</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_find</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_embedChar</span> <span class="o">+</span> <span class="s2">&quot;&gt;&quot;</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">j</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span> <span class="o">&amp;&amp;</span> <span class="nx">j</span> <span class="o">&lt;</span> <span class="nx">i</span><span class="p">)</span> <span class="nx">i</span> <span class="o">=</span> <span class="nx">j</span><span class="p">;</span>
+    <span class="nx">ret</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">source</span><span class="p">.</span><span class="nx">substring</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_pos</span><span class="p">,</span> <span class="nx">i</span><span class="p">);</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_pos</span> <span class="o">=</span> <span class="nx">i</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">COMMENT</span><span class="p">,</span> <span class="nx">ret</span><span class="p">,</span> <span class="kc">true</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_commentBlock</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+  
+  <span class="kd">var</span> <span class="nx">self</span> <span class="o">=</span> <span class="k">this</span><span class="p">;</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_withEofError</span><span class="p">(</span><span class="s2">&quot;Unterminated multiline comment&quot;</span><span class="p">,</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_find</span><span class="p">(</span><span class="s2">&quot;*/&quot;</span><span class="p">,</span> <span class="kc">true</span><span class="p">)</span>
+      <span class="p">,</span> <span class="nx">text</span> <span class="o">=</span> <span class="nx">self</span><span class="p">.</span><span class="nx">source</span><span class="p">.</span><span class="nx">substring</span><span class="p">(</span><span class="nx">self</span><span class="p">.</span><span class="nx">_pos</span><span class="p">,</span> <span class="nx">i</span><span class="p">)</span>
+      <span class="p">,</span> <span class="nx">tok</span> <span class="o">=</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">COMMENT_BLOCK</span><span class="p">,</span> <span class="nx">text</span><span class="p">,</span> <span class="kc">true</span><span class="p">);</span>
+    <span class="nx">self</span><span class="p">.</span><span class="nx">_pos</span> <span class="o">=</span> <span class="nx">i</span> <span class="o">+</span> <span class="mi">2</span><span class="p">;</span>
+    <span class="nx">self</span><span class="p">.</span><span class="nx">_line</span> <span class="o">+=</span> <span class="nx">text</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s2">&quot;\n&quot;</span><span class="p">).</span><span class="nx">length</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="nx">self</span><span class="p">.</span><span class="nx">_newlineBefore</span> <span class="o">=</span> <span class="nx">text</span><span class="p">.</span><span class="nx">indexOf</span><span class="p">(</span><span class="s2">&quot;\n&quot;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">return</span> <span class="nx">tok</span><span class="p">;</span>
+  <span class="p">});</span>
+<span class="p">};</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_name</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">backslash</span> <span class="o">=</span> <span class="kc">false</span>
+    <span class="p">,</span> <span class="nx">name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="p">,</span> <span class="nx">ch</span><span class="p">;</span>
+  
+  <span class="k">while</span> <span class="p">((</span><span class="nx">ch</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_peek</span><span class="p">())</span> <span class="o">!=</span> <span class="kc">null</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">backslash</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;\\&quot;</span><span class="p">)</span> <span class="nx">backslash</span> <span class="o">=</span> <span class="kc">true</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+      <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">g</span><span class="p">.</span><span class="nx">is_identifier_char</span><span class="p">(</span><span class="nx">ch</span><span class="p">))</span> <span class="nx">name</span> <span class="o">+=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+      <span class="k">else</span> <span class="k">break</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">!=</span> <span class="s2">&quot;u&quot;</span><span class="p">)</span> <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="s2">&quot;Expecting UnicodeEscapeSequence -- uXXXX&quot;</span><span class="p">);</span>
+      <span class="nx">ch</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_escapedChar</span><span class="p">();</span>
+      <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">g</span><span class="p">.</span><span class="nx">is_identifier_char</span><span class="p">(</span><span class="nx">ch</span><span class="p">))</span> <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="s2">&quot;Unicode char: &quot;</span> <span class="o">+</span> <span class="nx">ch</span><span class="p">.</span><span class="nx">charCodeAt</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; is not valid in identifier&quot;</span><span class="p">);</span>
+      <span class="nx">name</span> <span class="o">+=</span> <span class="nx">ch</span><span class="p">;</span>
+      <span class="nx">backslash</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="nx">name</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_regexp</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">self</span> <span class="o">=</span> <span class="k">this</span><span class="p">;</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_withEofError</span><span class="p">(</span><span class="s2">&quot;Unterminated regular expression&quot;</span><span class="p">,</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">ch</span>
+      <span class="p">,</span> <span class="nx">regexp</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+      <span class="p">,</span> <span class="nx">inClass</span> <span class="o">=</span> <span class="kc">false</span>
+      <span class="p">,</span> <span class="nx">prevBackslash</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+      
+    <span class="k">while</span> <span class="p">((</span><span class="nx">ch</span> <span class="o">=</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_next</span><span class="p">(</span><span class="kc">true</span><span class="p">)))</span> <span class="k">if</span> <span class="p">(</span><span class="nx">prevBackslash</span><span class="p">)</span> <span class="p">{</span>
+      <span class="nx">regexp</span> <span class="o">+=</span> <span class="s2">&quot;\\&quot;</span> <span class="o">+</span> <span class="nx">ch</span><span class="p">;</span>
+      <span class="nx">prevBackslash</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;[&quot;</span><span class="p">)</span> <span class="p">{</span>
+      <span class="nx">inClass</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+      <span class="nx">regexp</span> <span class="o">+=</span> <span class="nx">ch</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;]&quot;</span> <span class="o">&amp;&amp;</span> <span class="nx">inClass</span><span class="p">)</span> <span class="p">{</span>
+      <span class="nx">inClass</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+      <span class="nx">regexp</span> <span class="o">+=</span> <span class="nx">ch</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;/&quot;</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">inClass</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">break</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">ch</span> <span class="o">==</span> <span class="s2">&quot;\\&quot;</span><span class="p">)</span> <span class="p">{</span>
+      <span class="nx">prevBackslash</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+      <span class="nx">regexp</span> <span class="o">+=</span> <span class="nx">ch</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="kd">var</span> <span class="nx">mods</span> <span class="o">=</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_name</span><span class="p">();</span>
+    <span class="k">return</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">REGEXP</span><span class="p">,</span> <span class="p">[</span> <span class="nx">regexp</span><span class="p">,</span> <span class="nx">mods</span> <span class="p">]);</span>
+  <span class="p">});</span>
+<span class="p">};</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_operator</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">prefix</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">self</span> <span class="o">=</span> <span class="k">this</span><span class="p">;</span>
+  <span class="kd">function</span> <span class="nx">grow</span><span class="p">(</span><span class="nx">op</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">self</span><span class="p">.</span><span class="nx">_peek</span><span class="p">())</span> <span class="k">return</span> <span class="nx">op</span><span class="p">;</span>
+    <span class="kd">var</span> <span class="nx">bigger</span> <span class="o">=</span> <span class="nx">op</span> <span class="o">+</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_peek</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">g</span><span class="p">.</span><span class="nx">is_operator</span><span class="p">(</span><span class="nx">bigger</span><span class="p">))</span> <span class="p">{</span>
+      <span class="nx">self</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+      <span class="k">return</span> <span class="nx">grow</span><span class="p">(</span><span class="nx">bigger</span><span class="p">);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">return</span> <span class="nx">op</span><span class="p">;</span>
+  <span class="p">};</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">OPERATOR</span><span class="p">,</span> <span class="nx">grow</span><span class="p">(</span><span class="nx">prefix</span> <span class="o">||</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">()));</span>
+<span class="p">};</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_slash</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+  <span class="kd">var</span> <span class="nx">regexpAllowed</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_regexpAllowed</span><span class="p">;</span>
+  <span class="k">switch</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_peek</span><span class="p">())</span> <span class="p">{</span>
+      <span class="k">case</span> <span class="s2">&quot;/&quot;</span><span class="o">:</span>
+          <span class="kd">var</span> <span class="nx">comment</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_comment</span><span class="p">();</span>
+          <span class="k">if</span><span class="p">(</span><span class="nx">comment</span><span class="p">)</span> <span class="k">this</span><span class="p">.</span><span class="nx">_commentsBefore</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">comment</span><span class="p">);</span>
+          <span class="k">this</span><span class="p">.</span><span class="nx">_regexpAllowed</span> <span class="o">=</span> <span class="nx">regexpAllowed</span><span class="p">;</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">nextToken</span><span class="p">();</span>
+      <span class="k">case</span> <span class="s2">&quot;*&quot;</span><span class="o">:</span>
+          <span class="kd">var</span> <span class="nx">comment</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_commentBlock</span><span class="p">();</span>
+          <span class="k">if</span><span class="p">(</span><span class="nx">comment</span><span class="p">)</span> <span class="k">this</span><span class="p">.</span><span class="nx">_commentsBefore</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">comment</span><span class="p">);</span>
+          <span class="k">this</span><span class="p">.</span><span class="nx">_regexpAllowed</span> <span class="o">=</span> <span class="nx">regexpAllowed</span><span class="p">;</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">nextToken</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_regexpAllowed</span> <span class="o">?</span> <span class="k">this</span><span class="p">.</span><span class="nx">_regexp</span><span class="p">()</span> <span class="o">:</span> <span class="k">this</span><span class="p">.</span><span class="nx">_operator</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_dot</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+  <span class="k">return</span> <span class="nx">g</span><span class="p">.</span><span class="nx">is_digit</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_peek</span><span class="p">())</span> <span class="o">?</span> <span class="k">this</span><span class="p">.</span><span class="nx">_number</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span> <span class="o">:</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">PUNCTUATION</span><span class="p">,</span> <span class="s2">&quot;.&quot;</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_word</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">word</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_name</span><span class="p">();</span>
+  <span class="k">if</span><span class="p">(</span><span class="nx">g</span><span class="p">.</span><span class="nx">is_keyword</span><span class="p">(</span><span class="nx">word</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">if</span><span class="p">(</span><span class="nx">g</span><span class="p">.</span><span class="nx">is_operator</span><span class="p">(</span><span class="nx">word</span><span class="p">))</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">OPERATOR</span><span class="p">,</span> <span class="nx">word</span><span class="p">)</span>
+    <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">g</span><span class="p">.</span><span class="nx">is_keyword_atom</span><span class="p">(</span><span class="nx">word</span><span class="p">))</span>
+        <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">ATOM</span><span class="p">,</span> <span class="nx">word</span><span class="p">)</span>
+    <span class="k">else</span>
+        <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">KEYWORD</span><span class="p">,</span> <span class="nx">word</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">NAME</span><span class="p">,</span> <span class="nx">word</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_withEofError</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">message</span><span class="p">,</span> <span class="nx">cont</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nx">cont</span><span class="p">();</span>
+  <span class="p">}</span> <span class="k">catch</span><span class="p">(</span><span class="nx">ex</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">ex</span> <span class="o">===</span> <span class="nx">EX_EOF</span><span class="p">)</span> <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="nx">message</span><span class="p">);</span>
+    <span class="k">else</span> <span class="k">throw</span> <span class="nx">ex</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_token</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">type</span><span class="p">,</span> <span class="nx">value</span><span class="p">,</span> <span class="nx">isComment</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_regexpAllowed</span> <span class="o">=</span> <span class="p">((</span><span class="nx">type</span> <span class="o">==</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">OPERATOR</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">g</span><span class="p">.</span><span class="nx">is_unary_postfix</span><span class="p">(</span><span class="nx">value</span><span class="p">))</span> <span class="o">||</span>
+                        <span class="p">(</span><span class="nx">type</span> <span class="o">==</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">KEYWORD</span> <span class="o">&amp;&amp;</span> <span class="nx">g</span><span class="p">.</span><span class="nx">is_keyword_before_expression</span><span class="p">(</span><span class="nx">value</span><span class="p">))</span> <span class="o">||</span>
+                        <span class="p">(</span><span class="nx">type</span> <span class="o">==</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">PUNCTUATION</span> <span class="o">&amp;&amp;</span> <span class="nx">g</span><span class="p">.</span><span class="nx">is_punctuation_before_expression</span><span class="p">(</span><span class="nx">value</span><span class="p">)));</span>
+  
+  <span class="k">this</span><span class="p">.</span><span class="nx">_curToken</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Token</span><span class="p">(</span><span class="nx">type</span><span class="p">,</span> <span class="nx">value</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_line</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_col</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_pos</span><span class="p">);</span>
+  
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">isComment</span> <span class="o">&amp;&amp;</span> <span class="k">this</span><span class="p">.</span><span class="nx">_commentsBefore</span><span class="p">.</span><span class="nx">length</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_curToken</span><span class="p">.</span><span class="nx">commentsBefore</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_commentsBefore</span><span class="p">;</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_commentsBefore</span> <span class="o">=</span> <span class="p">[];</span>
+  <span class="p">}</span>
+  
+  <span class="k">if</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_newLineBefore</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_curToken</span><span class="p">.</span><span class="nx">newLineBefore</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_newLineBefore</span><span class="p">;</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_newLineBefore</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+  <span class="p">}</span>
+  
+  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_curToken</span><span class="p">.</span><span class="nx">isComment</span><span class="p">()</span> <span class="o">||</span> <span class="k">this</span><span class="p">.</span><span class="nx">_includeComments</span><span class="p">)</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">tokens</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_curToken</span><span class="p">);</span>
+  
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_curToken</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Lexer</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_error</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">throw</span> <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span><span class="nx">message</span><span class="p">);</span> <span class="c1">// should be ParseError</span>
+<span class="p">};</span>
+
+<span class="kd">var</span> <span class="nx">Token</span> <span class="o">=</span> <span class="nx">module</span><span class="p">.</span><span class="nx">exports</span><span class="p">.</span><span class="nx">Token</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">type</span><span class="p">,</span> <span class="nx">value</span><span class="p">,</span> <span class="nx">line</span><span class="p">,</span> <span class="nx">col</span><span class="p">,</span> <span class="nx">pos</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span><span class="p">(</span><span class="k">typeof</span> <span class="nx">type</span> <span class="o">==</span> <span class="s1">&#39;undefined&#39;</span><span class="p">)</span> <span class="k">throw</span> <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span><span class="s1">&#39;undefined token type&#39;</span><span class="p">);</span>
+
+  <span class="k">this</span><span class="p">.</span><span class="nx">type</span> <span class="o">=</span> <span class="nx">type</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">name</span> <span class="o">=</span> <span class="nx">Token</span><span class="p">[</span><span class="nx">type</span><span class="p">];</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">value</span> <span class="o">=</span> <span class="nx">value</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">line</span> <span class="o">=</span> <span class="nx">line</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">col</span> <span class="o">=</span> <span class="nx">col</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">pos</span> <span class="o">=</span> <span class="nx">pos</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Token</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">isComment</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">type</span> <span class="o">==</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">COMMENT</span> <span class="o">||</span> <span class="k">this</span><span class="p">.</span><span class="nx">type</span> <span class="o">==</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">COMMENT_BLOCK</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nx">Token</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">toString</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="s1">&#39;[&#39;</span> <span class="o">+</span> <span class="k">this</span><span class="p">.</span><span class="nx">type</span> <span class="o">+</span> <span class="s1">&#39;, &#39;</span> <span class="o">+</span> <span class="k">this</span><span class="p">.</span><span class="nx">value</span> <span class="o">+</span> <span class="s1">&#39;]&#39;</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="kd">var</span> <span class="nx">tokenTypes</span> <span class="o">=</span> <span class="p">[</span>
+  <span class="s1">&#39;output&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;embed&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;operator&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;keyword&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;atom&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;name&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;punctuation&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;string&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;number&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;regexp&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;comment&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;comment_block&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;eof&#39;</span>
+<span class="p">];</span>
+
+<span class="nx">tokenTypes</span><span class="p">.</span><span class="nx">forEach</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">name</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">name</span> <span class="o">=</span> <span class="nx">name</span><span class="p">.</span><span class="nx">toUpperCase</span><span class="p">()</span>
+  <span class="nx">Token</span><span class="p">[</span><span class="nx">name</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;T_&#39;</span> <span class="o">+</span> <span class="nx">name</span><span class="p">;</span>
+  <span class="nx">Token</span><span class="p">[</span><span class="nx">Token</span><span class="p">[</span><span class="nx">name</span><span class="p">]]</span> <span class="o">=</span> <span class="nx">name</span><span class="p">;</span>
+<span class="p">});</span>
+
+<span class="kd">var</span> <span class="nx">ParseError</span> <span class="o">=</span> <span class="nx">module</span><span class="p">.</span><span class="nx">exports</span><span class="p">.</span><span class="nx">ParseError</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">message</span><span class="p">,</span> <span class="nx">line</span><span class="p">,</span> <span class="nx">col</span><span class="p">,</span> <span class="nx">pos</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">message</span> <span class="o">=</span> <span class="nx">message</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">line</span> <span class="o">=</span> <span class="nx">line</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">col</span> <span class="o">=</span> <span class="nx">col</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">pos</span> <span class="o">=</span> <span class="nx">pos</span><span class="p">;</span>
+  <span class="k">try</span> <span class="p">{</span>
+          <span class="p">({})();</span>
+  <span class="p">}</span> <span class="k">catch</span><span class="p">(</span><span class="nx">ex</span><span class="p">)</span> <span class="p">{</span>
+          <span class="k">this</span><span class="p">.</span><span class="nx">stack</span> <span class="o">=</span> <span class="nx">ex</span><span class="p">.</span><span class="nx">stack</span><span class="p">;</span>
+  <span class="p">};</span>
+<span class="p">};</span>
+
+<span class="cm">/* utilities */</span>
+
+<span class="kd">var</span> <span class="nx">EX_EOF</span> <span class="o">=</span> <span class="p">{};</span>
+
+<span class="kd">var</span> <span class="nx">RE_HEX_NUMBER</span> <span class="o">=</span> <span class="sr">/^0x[0-9a-f]+$/i</span><span class="p">;</span>
+<span class="kd">var</span> <span class="nx">RE_OCT_NUMBER</span> <span class="o">=</span> <span class="sr">/^0[0-7]+$/</span><span class="p">;</span>
+<span class="kd">var</span> <span class="nx">RE_DEC_NUMBER</span> <span class="o">=</span> <span class="sr">/^\d*\.?\d*(?:e[+-]?\d*(?:\d\.?|\.?\d)\d*)?$/i</span><span class="p">;</span>
+
+<span class="kd">function</span> <span class="nx">parseJSNumber</span><span class="p">(</span><span class="nx">num</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">RE_HEX_NUMBER</span><span class="p">.</span><span class="nx">test</span><span class="p">(</span><span class="nx">num</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nb">parseInt</span><span class="p">(</span><span class="nx">num</span><span class="p">.</span><span class="nx">substr</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="mi">16</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">RE_OCT_NUMBER</span><span class="p">.</span><span class="nx">test</span><span class="p">(</span><span class="nx">num</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nb">parseInt</span><span class="p">(</span><span class="nx">num</span><span class="p">.</span><span class="nx">substr</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="mi">8</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">RE_DEC_NUMBER</span><span class="p">.</span><span class="nx">test</span><span class="p">(</span><span class="nx">num</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nb">parseFloat</span><span class="p">(</span><span class="nx">num</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+</pre></div>             </td>           </tr>                </tbody>     </table>   </div> </body> </html> 

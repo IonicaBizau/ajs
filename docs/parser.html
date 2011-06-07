@@ -1,0 +1,704 @@
+<!DOCTYPE html>  <html> <head>   <title>parser.js</title>   <meta http-equiv="content-type" content="text/html; charset=UTF-8">   <link rel="stylesheet" media="all" href="docco.css" /> </head> <body>   <div id="container">     <div id="background"></div>            <div id="jump_to">         Jump To &hellip;         <div id="jump_wrapper">           <div id="jump_page">                                           <a class="source" href="ajs.html">                 ajs.js               </a>                                           <a class="source" href="compiler.html">                 compiler.js               </a>                                           <a class="source" href="grammar.html">                 grammar.js               </a>                                           <a class="source" href="lexer.html">                 lexer.js               </a>                                           <a class="source" href="loader.html">                 loader.js               </a>                                           <a class="source" href="parser.html">                 parser.js               </a>                                           <a class="source" href="vm.html">                 vm.js               </a>                        </div>         </div>       </div>          <table cellpadding="0" cellspacing="0">       <thead>         <tr>           <th class="docs">             <h1>               parser.js             </h1>           </th>           <th class="code">           </th>         </tr>       </thead>       <tbody>                               <tr id="section-1">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-1">&#182;</a>               </div>               <pre><code>AJS 0.0.1
+(c) 2011 Evan Owen, LifeKraze LLC.
+AJS may be freely distributed under the MIT license.
+For details and documentation:
+http://github.com/kainosnoema/ajs
+
+Thanks to mishoo/uglifyjs for most of this!
+</code></pre>             </td>             <td class="code">               <div class="highlight"><pre><span class="kd">var</span> <span class="nx">util</span>  <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;util&#39;</span><span class="p">)</span>
+  <span class="p">,</span> <span class="nx">g</span>     <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;./grammar&#39;</span><span class="p">)</span>
+  <span class="p">,</span> <span class="nx">Token</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;./lexer&#39;</span><span class="p">).</span><span class="nx">Token</span></pre></div>             </td>           </tr>                               <tr id="section-2">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-2">&#182;</a>               </div>               <h2>AJS Parser</h2>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-3">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-3">&#182;</a>               </div>               <p>The parser takes raw token output from the lexer and construct
+an AST (abstract syntax tree) according to Javascript and AJS syntax rules.</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="kd">var</span> <span class="nx">Parser</span> <span class="o">=</span> <span class="nx">module</span><span class="p">.</span><span class="nx">exports</span> <span class="o">=</span> <span class="kd">function</span> <span class="nx">Parser</span><span class="p">(</span><span class="nx">lexer</span><span class="p">,</span> <span class="nx">opts</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">opts</span> <span class="o">=</span> <span class="nx">opts</span> <span class="o">||</span> <span class="p">{};</span>
+  
+  <span class="k">this</span><span class="p">.</span><span class="nx">lexer</span> <span class="o">=</span> <span class="nx">lexer</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">tree</span> <span class="o">=</span> <span class="p">[];</span>
+  
+  <span class="k">this</span><span class="p">.</span><span class="nx">exigentMode</span> <span class="o">=</span> <span class="p">(</span><span class="nx">opts</span><span class="p">.</span><span class="nx">exigentMode</span> <span class="o">==</span> <span class="kc">true</span><span class="p">);</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">embedTokens</span> <span class="o">=</span> <span class="p">(</span><span class="nx">opts</span><span class="p">.</span><span class="nx">embedTokens</span> <span class="o">==</span> <span class="kc">true</span><span class="p">);</span>
+  
+  <span class="k">this</span><span class="p">.</span><span class="nx">_token</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_peeked</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_prevToken</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_inFunction</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_inLoop</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_labels</span> <span class="o">=</span> <span class="p">[];</span>
+<span class="p">}</span></pre></div>             </td>           </tr>                               <tr id="section-4">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-4">&#182;</a>               </div>               <p>We use a recursive look-ahead algorithm to build up the AST. Parse a statement
+at a time until we reach the end of the file.</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">parse</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">self</span> <span class="o">=</span> <span class="k">this</span>
+
+  <span class="k">this</span><span class="p">.</span><span class="nx">_pos</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  
+  <span class="kd">var</span> <span class="nx">self</span> <span class="o">=</span> <span class="k">this</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">tree</span> <span class="o">=</span> <span class="p">(</span><span class="kd">function</span><span class="p">(){</span>
+    <span class="nx">self</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="kd">var</span> <span class="nx">statements</span> <span class="o">=</span> <span class="p">[];</span>
+    <span class="k">while</span> <span class="p">(</span><span class="o">!</span><span class="nx">self</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">EOF</span><span class="p">))</span>
+      <span class="nx">statements</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">self</span><span class="p">.</span><span class="nx">_statement</span><span class="p">());</span>
+    <span class="k">return</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">ROOT</span><span class="p">,</span> <span class="nx">statements</span><span class="p">);</span>
+  <span class="p">})();</span>
+  
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">tree</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_peek</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_peeked</span> <span class="o">||</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_peeked</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">lexer</span><span class="p">.</span><span class="nx">nextToken</span><span class="p">());</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_next</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_prevToken</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_peeked</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_token</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_peeked</span><span class="p">;</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_peeked</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_token</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">lexer</span><span class="p">.</span><span class="nx">nextToken</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">)</span>
+    <span class="k">throw</span> <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span><span class="s1">&#39;unexpected eof, after:&#39;</span> <span class="o">+</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prev</span><span class="p">()</span> <span class="o">+</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prev</span><span class="p">().</span><span class="nx">line</span><span class="p">);</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_prev</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prevToken</span><span class="p">;</span>
+<span class="p">};</span>
+
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_tokenIs</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">type</span><span class="p">,</span> <span class="nx">value</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="nx">tokenIs</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">,</span> <span class="nx">type</span><span class="p">,</span> <span class="nx">value</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_tokenIsPunc</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">value</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="nx">tokenIs</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">,</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">PUNCTUATION</span><span class="p">,</span> <span class="nx">value</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_error</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">msg</span><span class="p">,</span> <span class="nx">line</span><span class="p">,</span> <span class="nx">col</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">throw</span> <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span><span class="nx">msg</span> <span class="o">+</span> <span class="s2">&quot; at line &quot;</span> <span class="o">+</span> <span class="p">(</span><span class="nx">line</span> <span class="o">||</span> <span class="k">this</span><span class="p">.</span><span class="nx">lexer</span><span class="p">.</span><span class="nx">_line</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;, column &quot;</span> <span class="o">+</span> <span class="p">(</span><span class="nx">col</span> <span class="o">||</span> <span class="k">this</span><span class="p">.</span><span class="nx">lexer</span><span class="p">.</span><span class="nx">_col</span><span class="p">));</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_tokenError</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">token</span><span class="p">,</span> <span class="nx">msg</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="nx">msg</span><span class="p">,</span> <span class="nx">token</span><span class="p">.</span><span class="nx">line</span><span class="p">,</span> <span class="nx">token</span><span class="p">.</span><span class="nx">col</span><span class="p">);</span>
+<span class="p">};</span>
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_unexpected</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">token</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">token</span> <span class="o">==</span> <span class="kc">null</span><span class="p">)</span> <span class="nx">token</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_tokenError</span><span class="p">(</span><span class="nx">token</span><span class="p">,</span> <span class="s2">&quot;Unexpected token: &quot;</span> <span class="o">+</span> <span class="nx">token</span><span class="p">.</span><span class="nx">type</span> <span class="o">+</span> <span class="s2">&quot; (&quot;</span> <span class="o">+</span> <span class="nx">token</span><span class="p">.</span><span class="nx">value</span> <span class="o">+</span> <span class="s2">&quot;)&quot;</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_expectToken</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">type</span><span class="p">,</span> <span class="nx">val</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">type</span><span class="p">,</span> <span class="nx">val</span><span class="p">))</span> <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_tokenError</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">,</span> <span class="s2">&quot;Unexpected token &quot;</span> <span class="o">+</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">type</span> <span class="o">+</span> <span class="s2">&quot;, expected &quot;</span> <span class="o">+</span> <span class="nx">type</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_expect</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">punc</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_expectToken</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">PUNCTUATION</span><span class="p">,</span> <span class="nx">punc</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_canInsertSemicolon</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">exigentMode</span> <span class="o">&amp;&amp;</span> <span class="p">(</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">newLineBefore</span> <span class="o">||</span> <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">EOF</span><span class="p">)</span> <span class="o">||</span> <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;}&quot;</span><span class="p">)</span>
+  <span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_semicolon</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">))</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+  <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_canInsertSemicolon</span><span class="p">()</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">OUTPUT</span><span class="p">))</span> <span class="k">this</span><span class="p">.</span><span class="nx">_unexpected</span><span class="p">();</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_parenthesised</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;(&quot;</span><span class="p">);</span>
+  <span class="kd">var</span> <span class="nx">ex</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">();</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">);</span>
+  <span class="k">return</span> <span class="nx">ex</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_statement</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">OPERATOR</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_peeked</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_token</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">lexer</span><span class="p">.</span><span class="nx">nextToken</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span> <span class="c1">// force regexp</span>
+  <span class="p">}</span>
+  
+  <span class="k">switch</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">type</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">OUTPUT</span><span class="o">:</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">OUTPUT</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">));</span>
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">EMBED</span><span class="o">:</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_embed</span><span class="p">();</span>
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">NUMBER</span><span class="o">:</span>
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">STRING</span><span class="o">:</span>
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">REGEXP</span><span class="o">:</span>
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">OPERATOR</span><span class="o">:</span>
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">ATOM</span><span class="o">:</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_simpleStatement</span><span class="p">();</span>
+    
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">NAME</span><span class="o">:</span>
+      <span class="k">return</span> <span class="nx">tokenIs</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_peek</span><span class="p">(),</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">PUNCTUATION</span><span class="p">,</span> <span class="s2">&quot;:&quot;</span><span class="p">)</span>
+              <span class="o">?</span> <span class="k">this</span><span class="p">.</span><span class="nx">_labeledStatement</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">))</span>
+              <span class="o">:</span> <span class="k">this</span><span class="p">.</span><span class="nx">_simpleStatement</span><span class="p">();</span>
+    
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">PUNCTUATION</span><span class="o">:</span>
+      <span class="k">switch</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">case</span> <span class="s2">&quot;{&quot;</span><span class="o">:</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">BLOCK</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_block</span><span class="p">());</span>
+        <span class="k">case</span> <span class="s2">&quot;[&quot;</span><span class="o">:</span>
+        <span class="k">case</span> <span class="s2">&quot;(&quot;</span><span class="o">:</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_simpleStatement</span><span class="p">();</span>
+        <span class="k">case</span> <span class="s2">&quot;;&quot;</span><span class="o">:</span>
+          <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">BLOCK</span><span class="p">);</span>
+        <span class="k">default</span><span class="o">:</span>
+          <span class="k">this</span><span class="p">.</span><span class="nx">_unexpected</span><span class="p">();</span>
+      <span class="p">}</span>
+
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">KEYWORD</span><span class="o">:</span>
+      <span class="k">switch</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">))</span> <span class="p">{</span>
+        <span class="k">case</span> <span class="s2">&quot;break&quot;</span><span class="o">:</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_breakCont</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">BREAK</span><span class="p">);</span>
+        <span class="k">case</span> <span class="s2">&quot;continue&quot;</span><span class="o">:</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_breakCont</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">CONTINUE</span><span class="p">);</span>
+        <span class="k">case</span> <span class="s2">&quot;debugger&quot;</span><span class="o">:</span>
+          <span class="k">this</span><span class="p">.</span><span class="nx">_semicolon</span><span class="p">();</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">DEBUGGER</span><span class="p">);</span>
+        <span class="k">case</span> <span class="s2">&quot;do&quot;</span><span class="o">:</span>
+          <span class="kd">var</span> <span class="nx">self</span> <span class="o">=</span> <span class="k">this</span><span class="p">;</span>
+          <span class="k">return</span> <span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">body</span><span class="p">){</span>
+            <span class="nx">self</span><span class="p">.</span><span class="nx">_expectToken</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">KEYWORD</span><span class="p">,</span> <span class="s2">&quot;while&quot;</span><span class="p">);</span>
+            <span class="k">return</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">DO</span><span class="p">,</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="nx">self</span><span class="p">.</span><span class="nx">_parenthesised</span><span class="p">,</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_semicolon</span><span class="p">),</span> <span class="nx">body</span><span class="p">);</span>
+          <span class="p">})(</span><span class="k">this</span><span class="p">.</span><span class="nx">_loop</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_statement</span><span class="p">));</span>
+        <span class="k">case</span> <span class="s2">&quot;for&quot;</span><span class="o">:</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_for</span><span class="p">();</span>
+        <span class="k">case</span> <span class="s2">&quot;function&quot;</span><span class="o">:</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_function</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+        <span class="k">case</span> <span class="s2">&quot;if&quot;</span><span class="o">:</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_if</span><span class="p">();</span>
+        <span class="k">case</span> <span class="s2">&quot;return&quot;</span><span class="o">:</span>
+          <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_inFunction</span><span class="p">)</span>
+            <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="s2">&quot;&#39;return&#39; outside of function&quot;</span><span class="p">);</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">RETURN</span><span class="p">,</span>
+                      <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">)</span>
+                      <span class="o">?</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">(),</span> <span class="kc">null</span><span class="p">)</span>
+                      <span class="o">:</span> <span class="k">this</span><span class="p">.</span><span class="nx">_canInsertSemicolon</span><span class="p">()</span>
+                      <span class="o">?</span> <span class="kc">null</span>
+                      <span class="o">:</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_semicolon</span><span class="p">));</span>
+        <span class="k">case</span> <span class="s2">&quot;switch&quot;</span><span class="o">:</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">SWITCH</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_parenthesised</span><span class="p">(),</span> <span class="k">this</span><span class="p">.</span><span class="nx">_switchBlock</span><span class="p">());</span>
+        <span class="k">case</span> <span class="s2">&quot;throw&quot;</span><span class="o">:</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">THROW</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_semicolon</span><span class="p">));</span>
+        <span class="k">case</span> <span class="s2">&quot;try&quot;</span><span class="o">:</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_try</span><span class="p">();</span>
+        <span class="k">case</span> <span class="s2">&quot;var&quot;</span><span class="o">:</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_var</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_semicolon</span><span class="p">);</span>
+        <span class="k">case</span> <span class="s2">&quot;const&quot;</span><span class="o">:</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_const</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_semicolon</span><span class="p">);</span>
+        <span class="k">case</span> <span class="s2">&quot;while&quot;</span><span class="o">:</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">WHILE</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_parenthesised</span><span class="p">(),</span> <span class="k">this</span><span class="p">.</span><span class="nx">_loop</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_statement</span><span class="p">));</span>
+        <span class="k">case</span> <span class="s2">&quot;with&quot;</span><span class="o">:</span>
+          <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">WITH</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_parenthesised</span><span class="p">(),</span> <span class="k">this</span><span class="p">.</span><span class="nx">_statement</span><span class="p">());</span>
+        <span class="k">default</span><span class="o">:</span>
+          <span class="k">this</span><span class="p">.</span><span class="nx">_unexpected</span><span class="p">();</span>
+      <span class="p">}</span>
+    <span class="k">break</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_embed</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">type</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">()</span>
+  <span class="k">switch</span> <span class="p">(</span><span class="nx">type</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">case</span> <span class="s2">&quot;=&quot;</span><span class="o">:</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">EMBED</span><span class="p">,</span> <span class="p">[</span><span class="k">this</span><span class="p">.</span><span class="nx">_statement</span><span class="p">()]);</span>
+    <span class="k">default</span><span class="o">:</span> <span class="k">this</span><span class="p">.</span><span class="nx">_unexpected</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_labeledStatement</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">label</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_labels</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">label</span><span class="p">);</span>
+  <span class="kd">var</span> <span class="nx">start</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span>
+    <span class="p">,</span> <span class="nx">statNode</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_statement</span><span class="p">();</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">exigentMode</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">g</span><span class="p">.</span><span class="nx">is_statement_with_label</span><span class="p">(</span><span class="nx">statNode</span><span class="p">.</span><span class="nx">type</span><span class="p">))</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_unexpected</span><span class="p">(</span><span class="nx">start</span><span class="p">);</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_labels</span><span class="p">.</span><span class="nx">pop</span><span class="p">();</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">LABEL</span><span class="p">,</span> <span class="nx">label</span><span class="p">,</span> <span class="nx">statNode</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_simpleStatement</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">STATEMENT</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_semicolon</span><span class="p">));</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_breakCont</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">type</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">name</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">NAME</span><span class="p">)</span> <span class="o">?</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span> <span class="o">:</span> <span class="kc">null</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">name</span> <span class="o">!=</span> <span class="kc">null</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">member</span><span class="p">(</span><span class="nx">name</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_labels</span><span class="p">))</span>
+      <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="s2">&quot;Label &quot;</span> <span class="o">+</span> <span class="nx">name</span> <span class="o">+</span> <span class="s2">&quot; without matching loop or statement&quot;</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_inLoop</span><span class="p">)</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="nx">type</span> <span class="o">+</span> <span class="s2">&quot; not inside a loop or switch&quot;</span><span class="p">);</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_semicolon</span><span class="p">();</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">type</span><span class="p">,</span> <span class="nx">name</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_for</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;(&quot;</span><span class="p">);</span>
+  <span class="kd">var</span> <span class="nx">init</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="nx">init</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">KEYWORD</span><span class="p">,</span> <span class="s2">&quot;var&quot;</span><span class="p">)</span>
+            <span class="o">?</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">(),</span> <span class="k">this</span><span class="p">.</span><span class="nx">_var</span><span class="p">(</span><span class="kc">true</span><span class="p">))</span>
+            <span class="o">:</span> <span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">(</span><span class="kc">true</span><span class="p">,</span> <span class="kc">true</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">OPERATOR</span><span class="p">,</span> <span class="s2">&quot;in&quot;</span><span class="p">))</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_forIn</span><span class="p">(</span><span class="nx">init</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_regularFor</span><span class="p">(</span><span class="nx">init</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_regularFor</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">init</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">);</span>
+  <span class="kd">var</span> <span class="nx">test</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">)</span> <span class="o">?</span> <span class="kc">null</span> <span class="o">:</span> <span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">();</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">);</span>
+  <span class="kd">var</span> <span class="nx">step</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">)</span> <span class="o">?</span> <span class="kc">null</span> <span class="o">:</span> <span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">();</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">);</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">FOR</span><span class="p">,</span> <span class="nx">init</span><span class="p">,</span> <span class="nx">test</span><span class="p">,</span> <span class="nx">step</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_loop</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_statement</span><span class="p">));</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_forIn</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">init</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">lhs</span> <span class="o">=</span> <span class="nx">init</span><span class="p">.</span><span class="nx">type</span> <span class="o">==</span> <span class="nx">Node</span><span class="p">.</span><span class="nx">VAR</span> <span class="o">?</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">NAME</span><span class="p">,</span> <span class="nx">init</span><span class="p">.</span><span class="nx">children</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">].</span><span class="nx">children</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">:</span> <span class="nx">init</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+  <span class="kd">var</span> <span class="nx">obj</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">();</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">);</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">FOR_IN</span><span class="p">,</span> <span class="nx">init</span><span class="p">,</span> <span class="nx">lhs</span><span class="p">,</span> <span class="nx">obj</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_loop</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_statement</span><span class="p">));</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_function</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">inStatement</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">name</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">NAME</span><span class="p">)</span> <span class="o">?</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">)</span> <span class="o">:</span> <span class="kc">null</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">inStatement</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">name</span><span class="p">)</span> <span class="k">this</span><span class="p">.</span><span class="nx">_unexpected</span><span class="p">();</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;(&quot;</span><span class="p">);</span>
+  <span class="kd">var</span> <span class="nx">self</span> <span class="o">=</span> <span class="k">this</span><span class="p">;</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">inStatement</span> <span class="o">?</span> <span class="nx">Node</span><span class="p">.</span><span class="nx">DEFUN</span> <span class="o">:</span> <span class="nx">Node</span><span class="p">.</span><span class="nx">FUNCTION</span><span class="p">,</span>
+    <span class="nx">name</span><span class="p">,</span>
+    <span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">first</span><span class="p">,</span> <span class="nx">a</span><span class="p">){</span> <span class="c1">// arguments</span>
+      <span class="k">while</span> <span class="p">(</span><span class="o">!</span><span class="nx">self</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">))</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nx">first</span><span class="p">)</span> <span class="nx">first</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span> <span class="k">else</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">);</span>
+        <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">self</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">NAME</span><span class="p">))</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_unexpected</span><span class="p">();</span>
+        <span class="nx">a</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">self</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">);</span>
+        <span class="nx">self</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+      <span class="p">}</span>
+      <span class="nx">self</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+      <span class="k">return</span> <span class="nx">a</span><span class="p">;</span>
+    <span class="p">})(</span><span class="kc">true</span><span class="p">,</span> <span class="p">[]),</span>
+    <span class="p">(</span><span class="kd">function</span><span class="p">(){</span> <span class="c1">// body</span>
+      <span class="o">++</span><span class="nx">self</span><span class="p">.</span><span class="nx">_inFunction</span><span class="p">;</span>
+      <span class="kd">var</span> <span class="nx">loop</span> <span class="o">=</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_inLoop</span><span class="p">;</span>
+      <span class="nx">self</span><span class="p">.</span><span class="nx">_inLoop</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+      <span class="kd">var</span> <span class="nx">node</span> <span class="o">=</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_block</span><span class="p">();</span>
+      <span class="o">--</span><span class="nx">self</span><span class="p">.</span><span class="nx">_inFunction</span><span class="p">;</span>
+      <span class="nx">self</span><span class="p">.</span><span class="nx">_inLoop</span> <span class="o">=</span> <span class="nx">loop</span><span class="p">;</span>
+      <span class="k">return</span> <span class="nx">node</span><span class="p">;</span>
+    <span class="p">})());</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_if</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">cond</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_parenthesised</span><span class="p">()</span>
+    <span class="p">,</span> <span class="nx">body</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_statement</span><span class="p">()</span>
+    <span class="p">,</span> <span class="nx">belse</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">KEYWORD</span><span class="p">,</span> <span class="s2">&quot;else&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="nx">belse</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_statement</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">IF</span><span class="p">,</span> <span class="nx">cond</span><span class="p">,</span> <span class="nx">body</span><span class="p">,</span> <span class="nx">belse</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_block</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;{&quot;</span><span class="p">);</span>
+  <span class="kd">var</span> <span class="nx">a</span> <span class="o">=</span> <span class="p">[];</span>
+  <span class="k">while</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;}&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">EOF</span><span class="p">))</span> <span class="k">this</span><span class="p">.</span><span class="nx">_unexpected</span><span class="p">();</span>
+    <span class="nx">a</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_statement</span><span class="p">());</span>
+  <span class="p">}</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+  <span class="k">return</span> <span class="nx">a</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_switchBlock</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">self</span> <span class="o">=</span> <span class="k">this</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_curry</span><span class="p">(</span><span class="nx">self</span><span class="p">.</span><span class="nx">_loop</span><span class="p">,</span> <span class="kd">function</span><span class="p">(){</span>
+    <span class="nx">self</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;{&quot;</span><span class="p">);</span>
+    <span class="kd">var</span> <span class="nx">node</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">BLOCK</span><span class="p">)</span>
+      <span class="p">,</span> <span class="nx">cur</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+    <span class="k">while</span> <span class="p">(</span><span class="o">!</span><span class="nx">self</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;}&quot;</span><span class="p">))</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">(</span><span class="nx">self</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">EOF</span><span class="p">))</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_unexpected</span><span class="p">();</span>
+      <span class="k">if</span> <span class="p">(</span><span class="nx">self</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">KEYWORD</span><span class="p">,</span> <span class="s2">&quot;case&quot;</span><span class="p">))</span> <span class="p">{</span>
+        <span class="nx">self</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+        <span class="nx">cur</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">STATEMENT</span><span class="p">);</span>
+        <span class="nx">node</span><span class="p">.</span><span class="nx">push</span><span class="p">([</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_expression</span><span class="p">(),</span> <span class="nx">cur</span> <span class="p">]);</span>
+        <span class="nx">self</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">);</span>
+      <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">self</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">KEYWORD</span><span class="p">,</span> <span class="s2">&quot;default&quot;</span><span class="p">))</span> <span class="p">{</span>
+        <span class="nx">self</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+        <span class="nx">self</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">);</span>
+        <span class="nx">cur</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">STATEMENT</span><span class="p">);</span>
+        <span class="nx">node</span><span class="p">.</span><span class="nx">push</span><span class="p">([</span> <span class="kc">null</span><span class="p">,</span> <span class="nx">cur</span> <span class="p">]);</span>
+      <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">cur</span><span class="p">)</span> <span class="nx">self</span><span class="p">.</span><span class="nx">_unexpected</span><span class="p">();</span>
+        <span class="nx">cur</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">self</span><span class="p">.</span><span class="nx">_statement</span><span class="p">());</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="nx">self</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="k">return</span> <span class="nx">node</span><span class="p">;</span>
+  <span class="p">})();</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_try</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">body</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_block</span><span class="p">()</span>
+    <span class="p">,</span> <span class="nx">bcatch</span>
+    <span class="p">,</span> <span class="nx">bfinally</span><span class="p">;</span>
+    
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">KEYWORD</span><span class="p">,</span> <span class="s2">&quot;catch&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;(&quot;</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">NAME</span><span class="p">))</span> <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="s2">&quot;Name expected&quot;</span><span class="p">);</span>
+    <span class="kd">var</span> <span class="nx">name</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">;</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">);</span>
+    <span class="nx">bcatch</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">BLOCK</span><span class="p">,</span> <span class="nx">name</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_block</span><span class="p">());</span>
+  <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">KEYWORD</span><span class="p">,</span> <span class="s2">&quot;finally&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="nx">bfinally</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_block</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">bcatch</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">bfinally</span><span class="p">)</span> <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="s2">&quot;Missing catch/finally blocks&quot;</span><span class="p">);</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">TRY</span><span class="p">,</span> <span class="nx">body</span><span class="p">,</span> <span class="nx">bcatch</span><span class="p">,</span> <span class="nx">bfinally</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_vardefs</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">noIn</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">a</span> <span class="o">=</span> <span class="p">[];</span>
+  <span class="k">for</span> <span class="p">(;;)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">NAME</span><span class="p">))</span> <span class="k">this</span><span class="p">.</span><span class="nx">_unexpected</span><span class="p">();</span>
+    <span class="kd">var</span> <span class="nx">name</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">;</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">OPERATOR</span><span class="p">,</span> <span class="s2">&quot;=&quot;</span><span class="p">))</span> <span class="p">{</span>
+      <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+      <span class="nx">a</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">VAR_DEF</span><span class="p">,</span> <span class="nx">name</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span> <span class="nx">noIn</span><span class="p">)));</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+      <span class="nx">a</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">VAR_DEF</span><span class="p">,</span> <span class="nx">name</span><span class="p">));</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">))</span>
+      <span class="k">break</span><span class="p">;</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="nx">a</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_var</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">noIn</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">VAR</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_vardefs</span><span class="p">(</span><span class="nx">noIn</span><span class="p">));</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_const</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">CONST</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_vardefs</span><span class="p">(</span><span class="nx">noIn</span><span class="p">));</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_new</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">newexp</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_exprAtom</span><span class="p">(</span><span class="kc">false</span><span class="p">)</span>
+    <span class="p">,</span> <span class="nx">args</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;(&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="nx">args</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_exprList</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="nx">args</span> <span class="o">=</span> <span class="p">[];</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_subscripts</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">NEW</span><span class="p">,</span> <span class="nx">newexp</span><span class="p">,</span> <span class="nx">args</span><span class="p">),</span> <span class="kc">true</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_exprAtom</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">allowCalls</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">OPERATOR</span><span class="p">,</span> <span class="s2">&quot;new&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_new</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">OPERATOR</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="nx">g</span><span class="p">.</span><span class="nx">is_unary_prefix</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_makeUnary</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">UNARY_PREFIX</span><span class="p">,</span>
+                        <span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">),</span>
+                        <span class="k">this</span><span class="p">.</span><span class="nx">_exprAtom</span><span class="p">(</span><span class="nx">allowCalls</span><span class="p">));</span>
+  <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">PUNCTUATION</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">switch</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">case</span> <span class="s2">&quot;(&quot;</span><span class="o">:</span>
+        <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+        <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_subscripts</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_curry</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">,</span> <span class="s2">&quot;)&quot;</span><span class="p">)),</span> <span class="nx">allowCalls</span><span class="p">);</span>
+      <span class="k">case</span> <span class="s2">&quot;[&quot;</span><span class="o">:</span>
+        <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+        <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_subscripts</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_array</span><span class="p">(),</span> <span class="nx">allowCalls</span><span class="p">);</span>
+      <span class="k">case</span> <span class="s2">&quot;{&quot;</span><span class="o">:</span>
+        <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+        <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_subscripts</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_object</span><span class="p">(),</span> <span class="nx">allowCalls</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_unexpected</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">KEYWORD</span><span class="p">,</span> <span class="s2">&quot;function&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_subscripts</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_function</span><span class="p">(</span><span class="kc">false</span><span class="p">),</span> <span class="nx">allowCalls</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">g</span><span class="p">.</span><span class="nx">is_atomic_start_token</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">type</span><span class="p">))</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">atom</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">REGEXP</span><span class="p">)</span>
+            <span class="o">?</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">REGEXP</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="o">:</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">[</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">name</span><span class="p">],</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">);</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_subscripts</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="nx">atom</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">),</span> <span class="nx">allowCalls</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_unexpected</span><span class="p">();</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_exprList</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">closing</span><span class="p">,</span> <span class="nx">allowTrailingComma</span><span class="p">,</span> <span class="nx">allowEmpty</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">first</span> <span class="o">=</span> <span class="kc">true</span>
+    <span class="p">,</span> <span class="nx">a</span> <span class="o">=</span> <span class="p">[];</span>
+  <span class="k">while</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="nx">closing</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">first</span><span class="p">)</span> <span class="nx">first</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span> <span class="k">else</span> <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">allowTrailingComma</span> <span class="o">&amp;&amp;</span> <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="nx">closing</span><span class="p">))</span> <span class="k">break</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="nx">allowEmpty</span><span class="p">)</span> <span class="p">{</span>
+      <span class="nx">a</span><span class="p">.</span><span class="nx">push</span><span class="p">([</span> <span class="s2">&quot;atom&quot;</span><span class="p">,</span> <span class="s2">&quot;undefined&quot;</span> <span class="p">]);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+      <span class="nx">a</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">(</span><span class="kc">false</span><span class="p">));</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+  <span class="k">return</span> <span class="nx">a</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_array</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">ARRAY</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_exprList</span><span class="p">(</span><span class="s2">&quot;]&quot;</span><span class="p">,</span> <span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_exigentMode</span><span class="p">,</span> <span class="kc">true</span><span class="p">));</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_object</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">first</span> <span class="o">=</span> <span class="kc">true</span>
+    <span class="p">,</span> <span class="nx">node</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">EXPRESSION_LIST</span><span class="p">);</span>
+  <span class="k">while</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;}&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">first</span><span class="p">)</span> <span class="nx">first</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span> <span class="k">else</span> <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_exigentMode</span> <span class="o">&amp;&amp;</span> <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;}&quot;</span><span class="p">))</span>
+      <span class="k">break</span><span class="p">;</span> <span class="c1">// allow trailing comma</span>
+    <span class="kd">var</span> <span class="nx">type</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">type</span><span class="p">;</span>
+    <span class="kd">var</span> <span class="nx">name</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_propertyName</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">type</span> <span class="o">==</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">NAME</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="nx">name</span> <span class="o">==</span> <span class="s2">&quot;get&quot;</span> <span class="o">||</span> <span class="nx">name</span> <span class="o">==</span> <span class="s2">&quot;set&quot;</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">))</span> <span class="p">{</span>
+      <span class="nx">node</span><span class="p">.</span><span class="nx">push</span><span class="p">([</span> <span class="k">this</span><span class="p">.</span><span class="nx">_name</span><span class="p">(),</span> <span class="k">this</span><span class="p">.</span><span class="nx">_function</span><span class="p">(</span><span class="kc">false</span><span class="p">),</span> <span class="nx">name</span> <span class="p">]);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+      <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">);</span>
+      <span class="nx">node</span><span class="p">.</span><span class="nx">push</span><span class="p">([</span> <span class="nx">name</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">(</span><span class="kc">false</span><span class="p">)</span> <span class="p">]);</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">OBJECT</span><span class="p">,</span> <span class="nx">node</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_propertyName</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">switch</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">type</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">NUMBER</span><span class="o">:</span>
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">STRING</span><span class="o">:</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_name</span><span class="p">();</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_name</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">switch</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">type</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">NAME</span><span class="o">:</span>
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">OPERATOR</span><span class="o">:</span>
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">KEYWORD</span><span class="o">:</span>
+    <span class="k">case</span> <span class="nx">Token</span><span class="p">.</span><span class="nx">ATOM</span><span class="o">:</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">);</span>
+    <span class="k">default</span><span class="o">:</span>
+      <span class="k">this</span><span class="p">.</span><span class="nx">_unexpected</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_subscripts</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">expr</span><span class="p">,</span> <span class="nx">allowCalls</span><span class="p">)</span> <span class="p">{</span>
+  
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_subscripts</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">DOT</span><span class="p">,</span> <span class="nx">expr</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_name</span><span class="p">()),</span> <span class="nx">allowCalls</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;[&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_subscripts</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">SUBSCRIPT</span><span class="p">,</span> <span class="nx">expr</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_curry</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">,</span> <span class="s2">&quot;]&quot;</span><span class="p">))),</span> <span class="nx">allowCalls</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">allowCalls</span> <span class="o">&amp;&amp;</span> <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;(&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_subscripts</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">CALL</span><span class="p">,</span> <span class="nx">expr</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_exprList</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">)),</span> <span class="kc">true</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">allowCalls</span> <span class="o">&amp;&amp;</span> <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">OPERATOR</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="nx">g</span><span class="p">.</span><span class="nx">is_unary_postfix</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prog1</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_curry</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_makeUnary</span><span class="p">,</span> <span class="nx">Node</span><span class="p">.</span><span class="nx">UNARY_POSTFIX</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">,</span> <span class="nx">expr</span><span class="p">),</span>
+                 <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="nx">expr</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_makeUnary</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">name</span><span class="p">,</span> <span class="nx">op</span><span class="p">,</span> <span class="nx">expr</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">((</span><span class="nx">op</span> <span class="o">==</span> <span class="s2">&quot;++&quot;</span> <span class="o">||</span> <span class="nx">op</span> <span class="o">==</span> <span class="s2">&quot;--&quot;</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_isAssignable</span><span class="p">(</span><span class="nx">expr</span><span class="p">))</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="s2">&quot;Invalid use of &quot;</span> <span class="o">+</span> <span class="nx">op</span> <span class="o">+</span> <span class="s2">&quot; operator&quot;</span><span class="p">);</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">name</span><span class="p">,</span> <span class="nx">op</span><span class="p">,</span> <span class="nx">expr</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_exprOp</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">left</span><span class="p">,</span> <span class="nx">minPrec</span><span class="p">,</span> <span class="nx">noIn</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">op</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">OPERATOR</span><span class="p">)</span> <span class="o">?</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span> <span class="o">:</span> <span class="kc">null</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">op</span> <span class="o">&amp;&amp;</span> <span class="nx">op</span> <span class="o">==</span> <span class="s2">&quot;in&quot;</span> <span class="o">&amp;&amp;</span> <span class="nx">noIn</span><span class="p">)</span> <span class="nx">op</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">prec</span> <span class="o">=</span> <span class="nx">op</span> <span class="o">!=</span> <span class="kc">null</span> <span class="o">?</span> <span class="nx">g</span><span class="p">.</span><span class="nx">precedence</span><span class="p">(</span><span class="nx">op</span><span class="p">)</span> <span class="o">:</span> <span class="kc">null</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">prec</span> <span class="o">!=</span> <span class="kc">null</span> <span class="o">&amp;&amp;</span> <span class="nx">prec</span> <span class="o">&gt;</span> <span class="nx">minPrec</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="kd">var</span> <span class="nx">right</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_exprOp</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_exprAtom</span><span class="p">(</span><span class="kc">true</span><span class="p">),</span> <span class="nx">prec</span><span class="p">,</span> <span class="nx">noIn</span><span class="p">);</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_exprOp</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">BINARY</span><span class="p">,</span> <span class="nx">op</span><span class="p">,</span> <span class="nx">left</span><span class="p">,</span> <span class="nx">right</span><span class="p">),</span> <span class="nx">minPrec</span><span class="p">,</span> <span class="nx">noIn</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="nx">left</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_exprOps</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">noIn</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_exprOp</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_exprAtom</span><span class="p">(</span><span class="kc">true</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="nx">noIn</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_maybeTernary</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">noIn</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">expr</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_exprOps</span><span class="p">(</span><span class="nx">noIn</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">OPERATOR</span><span class="p">,</span> <span class="s2">&quot;?&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="kd">var</span> <span class="nx">yes</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_expect</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">);</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">TERNARY</span><span class="p">,</span> <span class="nx">expr</span><span class="p">,</span> <span class="nx">yes</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span> <span class="nx">noIn</span><span class="p">));</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="nx">expr</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_isAssignable</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">expr</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">exigentMode</span><span class="p">)</span> <span class="k">return</span> <span class="kc">true</span><span class="p">;</span>
+  <span class="k">switch</span> <span class="p">(</span><span class="nx">expr</span><span class="p">.</span><span class="nx">type</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">case</span> <span class="nx">Node</span><span class="p">.</span><span class="nx">DOT</span><span class="o">:</span>
+    <span class="k">case</span> <span class="nx">Node</span><span class="p">.</span><span class="nx">SUBSCRIPT</span><span class="o">:</span>
+    <span class="k">case</span> <span class="nx">Node</span><span class="p">.</span><span class="nx">NEW</span><span class="o">:</span>
+    <span class="k">case</span> <span class="nx">Node</span><span class="p">.</span><span class="nx">CALL</span><span class="o">:</span>
+      <span class="k">return</span> <span class="kc">true</span><span class="p">;</span>
+    <span class="k">case</span> <span class="nx">Node</span><span class="p">.</span><span class="nx">NAME</span><span class="o">:</span>
+      <span class="k">return</span> <span class="nx">expr</span><span class="p">.</span><span class="nx">value</span> <span class="o">!=</span> <span class="s2">&quot;this&quot;</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_maybeAssign</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">noIn</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">left</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_maybeTernary</span><span class="p">(</span><span class="nx">noIn</span><span class="p">)</span>
+    <span class="p">,</span> <span class="nx">val</span>  <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_token</span><span class="p">.</span><span class="nx">value</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_tokenIs</span><span class="p">(</span><span class="nx">Token</span><span class="p">.</span><span class="nx">OPERATOR</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="nx">g</span><span class="p">.</span><span class="nx">is_assignment</span><span class="p">(</span><span class="nx">val</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_isAssignable</span><span class="p">(</span><span class="nx">left</span><span class="p">))</span> <span class="p">{</span>
+      <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">ASSIGN</span><span class="p">,</span> <span class="nx">g</span><span class="p">.</span><span class="nx">assignment</span><span class="p">(</span><span class="nx">val</span><span class="p">),</span> <span class="nx">left</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_maybeAssign</span><span class="p">(</span><span class="nx">noIn</span><span class="p">));</span>
+    <span class="p">}</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_error</span><span class="p">(</span><span class="s2">&quot;Invalid assignment&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="nx">left</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_expression</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">commas</span><span class="p">,</span> <span class="nx">noIn</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">arguments</span><span class="p">.</span><span class="nx">length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="nx">commas</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+  <span class="kd">var</span> <span class="nx">expr</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_maybeAssign</span><span class="p">(</span><span class="nx">noIn</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">commas</span> <span class="o">&amp;&amp;</span> <span class="k">this</span><span class="p">.</span><span class="nx">_tokenIsPunc</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">_next</span><span class="p">();</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_node</span><span class="p">(</span><span class="nx">Node</span><span class="p">.</span><span class="nx">SEQUENCE</span><span class="p">,</span> <span class="nx">expr</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_expression</span><span class="p">(</span><span class="kc">true</span><span class="p">,</span> <span class="nx">noIn</span><span class="p">));</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="nx">expr</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_loop</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">cont</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="o">++</span><span class="k">this</span><span class="p">.</span><span class="nx">_inLoop</span><span class="p">;</span>
+    <span class="k">return</span> <span class="nx">cont</span><span class="p">.</span><span class="nx">call</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">finally</span> <span class="p">{</span>
+    <span class="o">--</span><span class="k">this</span><span class="p">.</span><span class="nx">_inLoop</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_curry</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">f</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">args</span> <span class="o">=</span> <span class="nx">slice</span><span class="p">(</span><span class="nx">arguments</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="p">,</span> <span class="nx">self</span> <span class="o">=</span> <span class="k">this</span><span class="p">;</span>
+  <span class="k">return</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="nx">f</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="nx">self</span><span class="p">,</span> <span class="nx">args</span><span class="p">.</span><span class="nx">concat</span><span class="p">(</span><span class="nx">slice</span><span class="p">(</span><span class="nx">arguments</span><span class="p">)));</span> <span class="p">};</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_prog1</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">ret</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">ret</span> <span class="k">instanceof</span> <span class="nb">Function</span><span class="p">)</span>
+    <span class="nx">ret</span> <span class="o">=</span> <span class="nx">ret</span><span class="p">.</span><span class="nx">call</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="nx">n</span> <span class="o">=</span> <span class="nx">arguments</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span> <span class="o">--</span><span class="nx">n</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">;</span> <span class="o">++</span><span class="nx">i</span><span class="p">)</span>
+    <span class="nx">arguments</span><span class="p">[</span><span class="nx">i</span><span class="p">].</span><span class="nx">call</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+  <span class="k">return</span> <span class="nx">ret</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nx">Parser</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">_node</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">type</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">node</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Node</span><span class="p">(</span><span class="nx">type</span><span class="p">);</span>
+  <span class="nx">node</span><span class="p">.</span><span class="nx">children</span> <span class="o">=</span> <span class="nb">Array</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">slice</span><span class="p">.</span><span class="nx">call</span><span class="p">(</span><span class="nx">arguments</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+  <span class="nx">node</span><span class="p">.</span><span class="nx">line</span> <span class="o">=</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_prevToken</span> <span class="o">&amp;&amp;</span> <span class="k">this</span><span class="p">.</span><span class="nx">_prevToken</span><span class="p">.</span><span class="nx">line</span><span class="p">)</span> <span class="o">||</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">return</span> <span class="nx">node</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">Node</span> <span class="o">=</span> <span class="nx">module</span><span class="p">.</span><span class="nx">exports</span><span class="p">.</span><span class="nx">Node</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">type</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span><span class="p">(</span><span class="k">typeof</span> <span class="nx">type</span> <span class="o">==</span> <span class="s1">&#39;undefined&#39;</span><span class="p">)</span> <span class="k">throw</span> <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span><span class="s1">&#39;undefined node type&#39;</span><span class="p">);</span>
+
+  <span class="k">this</span><span class="p">.</span><span class="nx">type</span> <span class="o">=</span> <span class="nx">type</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">line</span> <span class="o">=</span> <span class="kc">undefined</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">children</span> <span class="o">=</span> <span class="nb">Array</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">slice</span><span class="p">.</span><span class="nx">call</span><span class="p">(</span><span class="nx">arguments</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nx">Node</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">push</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">child</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">children</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">child</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nx">Node</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">toString</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="s1">&#39;[&#39;</span> <span class="o">+</span> <span class="k">this</span><span class="p">.</span><span class="nx">type</span> <span class="o">+</span> <span class="s1">&#39;, &#39;</span> <span class="o">+</span> <span class="nx">util</span><span class="p">.</span><span class="nx">inspect</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">children</span><span class="p">,</span> <span class="kc">false</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;]&#39;</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="kd">var</span> <span class="nx">nodeTypes</span> <span class="o">=</span> <span class="p">[</span>
+  <span class="s1">&#39;arguments&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;array&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;assign&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;atom&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;binary&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;block&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;break&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;call&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;const&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;continue&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;debugger&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;defun&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;do&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;dot&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;embed&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;expression_list&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;for&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;for_in&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;function&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;if&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;label&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;name&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;new&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;number&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;object&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;output&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;regexp&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;return&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;root&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;sequence&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;statement&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;string&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;switch&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;subscript&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;ternary&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;throw&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;try&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;unary_postfix&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;unary_prefix&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;var&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;var_def&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;while&#39;</span>
+<span class="p">,</span> <span class="s1">&#39;with&#39;</span>
+<span class="p">];</span>
+
+<span class="nx">nodeTypes</span><span class="p">.</span><span class="nx">forEach</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">name</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">name</span> <span class="o">=</span> <span class="nx">name</span><span class="p">.</span><span class="nx">toUpperCase</span><span class="p">()</span>
+  <span class="nx">Node</span><span class="p">[</span><span class="nx">name</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;N_&#39;</span> <span class="o">+</span> <span class="nx">name</span><span class="p">;</span>
+<span class="p">});</span></pre></div>             </td>           </tr>                               <tr id="section-5">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-5">&#182;</a>               </div>               <p>utilities</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="kd">function</span> <span class="nx">tokenIs</span><span class="p">(</span><span class="nx">token</span><span class="p">,</span> <span class="nx">type</span><span class="p">,</span> <span class="nx">value</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="nx">token</span><span class="p">.</span><span class="nx">type</span> <span class="o">==</span> <span class="nx">type</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="nx">value</span> <span class="o">==</span> <span class="kc">null</span> <span class="o">||</span> <span class="nx">token</span><span class="p">.</span><span class="nx">value</span> <span class="o">==</span> <span class="nx">value</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kd">function</span> <span class="nx">slice</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="nx">start</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="nb">Array</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">slice</span><span class="p">.</span><span class="nx">call</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="nx">start</span> <span class="o">==</span> <span class="kc">null</span> <span class="o">?</span> <span class="mi">0</span> <span class="o">:</span> <span class="nx">start</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="kd">function</span> <span class="nx">member</span><span class="p">(</span><span class="nx">name</span><span class="p">,</span> <span class="nx">array</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="nx">array</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span> <span class="o">--</span><span class="nx">i</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">array</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">===</span> <span class="nx">name</span><span class="p">)</span> <span class="k">return</span> <span class="kc">true</span><span class="p">;</span>
+  <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
+<span class="p">};</span>
+
+</pre></div>             </td>           </tr>                </tbody>     </table>   </div> </body> </html> 
