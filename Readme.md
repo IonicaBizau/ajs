@@ -107,7 +107,7 @@ var getPosts = function(viewCallback) {
 var server = connect.createServer()
                     .use(ajs({dir: './views'}))
                     .use(function(req, res) {
-                      res.render('index', {title: "Hello World!", getPosts: getPosts});
+                      res.render('index', {title: "Blog Home", getPosts: getPosts});
                     });
 ````
 
