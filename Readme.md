@@ -114,6 +114,10 @@ template.on('data', function(data) {
 template.render({title: 'Hello World!'});
 ````
 
+## Annotated Source / Documentation
+
+http://kainosnoema.github.com/ajs
+
 ## Authors
 
   * Evan Owen
