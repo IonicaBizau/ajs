@@ -2,7 +2,7 @@
 # AJS
 
  AJS is an experimental asyncronous templating language for [Node](http://nodejs.org).
- It's currently a work in progress, but Connect middleware is already functional.
+ Currently a work in progress, but Connect middleware is functional.
 
 ## Installation
 
@@ -49,7 +49,7 @@ index.ajs:
       <% }, 10 ) %>
     </p>
   
-    <!-- native array callback functions are exempt from the
+    <!-- some native syncronous callbacks are exempt from the
          nested callback restriction. -->
     
     <ul>
@@ -114,7 +114,7 @@ views/index.ajs:
 </html>
 ````
 
-For lower-level access to AJS, simply require the template file, bind to its `data`, `error` and `end` events, and call `.render(<context>)`, passing it an optional context object:
+For lower-level access, simply require the template file, bind to its `data`, `error` and `end` events, and call `.render(<context>)`, passing it an optional context object:
 
 ```` javascript
 var template = require('views/index');
