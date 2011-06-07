@@ -32,14 +32,13 @@ Thanks to mishoo/uglifyjs for most of this!
 <span class="p">}</span>
 
 <span class="nx">Compiler</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">compile</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-  <span class="kd">var</span> <span class="nx">lexer</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Lexer</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">source</span><span class="p">,</span> <span class="p">{</span><span class="nx">includeComments</span><span class="o">:</span> <span class="kc">false</span><span class="p">})</span>
-    <span class="p">,</span> <span class="nx">ast</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Parser</span><span class="p">(</span><span class="nx">lexer</span><span class="p">).</span><span class="nx">parse</span><span class="p">();</span>
+  <span class="kd">var</span> <span class="nx">lexer</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Lexer</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">source</span><span class="p">,</span> <span class="p">{</span><span class="nx">includeComments</span><span class="o">:</span> <span class="kc">false</span><span class="p">});</span>
   
-  <span class="k">this</span><span class="p">.</span><span class="nx">tree</span> <span class="o">=</span> <span class="nx">ast</span><span class="p">;</span>
-  <span class="k">this</span><span class="p">.</span><span class="nx">line</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">tree</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Parser</span><span class="p">(</span><span class="nx">lexer</span><span class="p">).</span><span class="nx">parse</span><span class="p">();</span>
   <span class="k">this</span><span class="p">.</span><span class="nx">lineCount</span> <span class="o">=</span> <span class="nx">lexer</span><span class="p">.</span><span class="nx">_line</span><span class="p">;</span>
   
   <span class="k">if</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">_onlyTree</span><span class="p">)</span> <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">tree</span><span class="p">;</span>
+  
   <span class="k">this</span><span class="p">.</span><span class="nx">compiled</span> <span class="o">=</span>  <span class="s2">&quot;(function(__ajs, __context) {\n&quot;</span> <span class="o">+</span>
                       <span class="s2">&quot;var include = __ajs.inc\n&quot;</span> <span class="o">+</span>
                       <span class="s2">&quot;  , print   = __ajs.out;\n&quot;</span> <span class="o">+</span>
