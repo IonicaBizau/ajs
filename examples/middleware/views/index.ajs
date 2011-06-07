@@ -1,0 +1,15 @@
+<html>
+  <head>
+    <title><%= title %></title>
+  </head>
+  <body>
+    <h3>Here's our data:</h3>
+
+<% dbCall(function(err, posts) {
+     posts.forEach(function(post) {%>
+       <%= post.title %><br/>
+<%   });
+   }); %>
+
+  </body>
+</html>

@@ -1,0 +1,16 @@
+<% var title = "Blog Home";
+   include('partials/header', {title: title}) %>
+
+<h1><%= title %></h1>
+
+<div id="posts">
+<% // this could be any asyncronous data source
+   // (in this case we've defined a mock db in './context.js') %>
+<% mysqlMock.query("select * from posts", function(err, posts) { %>
+  <% posts.forEach(function(post){ %>
+    <% include('partials/post', post) %>
+  <% }) %>
+<%  }) %>
+</div>
+
+<% include('partials/footer') %>

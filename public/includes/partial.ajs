@@ -1,5 +1,0 @@
-<p><%= "I'm in partial!" %></p>
-
-<% setTimeout(function() { %>
-<p><%= 'async in partial' %></p>
-<% }, 100 ) %>

@@ -11,22 +11,18 @@ index.ajs:
 ```` erb
 <html>
   <head>
+    <title><%= 'Hello World' %></title>
   </head>
   <body>
   
-    <!-- AJS is a strict superset of javascript, so require 
-         and variable assignment work as expected -->
+    <!-- AJS is a superset of javascript, so things like 
+         variable assignment just work as expected -->
   
-    <% var _ = require('underscore')
-     , async2 = function() { %>
+    <% var async2 = function() { %>
     <div><%= 'async 2 done' %></div>
     <% } %>
   
-    <% if(false) { %>
-    <h1>Hidden.</h1>
-    <% } %>
-
-    <% if(true) { %>
+    <% if(10 == (5 + 5)) { %>
     <h1>Hello world.</h1>
     <% } %>
 
@@ -40,41 +36,44 @@ index.ajs:
     <p>
       <% setTimeout(function() { %>
       <%= 'async 1 done' %>
-      <% }, 500 ) %>
+      <% }, 10 ) %>
     </p>
   
-    <!-- underscore.js functions are exempt from the
+    <!-- native array callback functions are exempt from the
          nested callback restriction. -->
     
     <ul>
-      <% _.each(['one', 'two', 'three'], function(item) { %>
-        <% _.each(['nested'], function(item2) { %>
+      <% ['one', 'two', 'three'].forEach(function(item) { %>
+        <% ['nested'].forEach(function(item2) { %>
         <li><%= item %></li>
-        <li><%= item2 %></li>
+        <% include('partials', {item: item2}) %>
         <% }); %>
       <% }); %>
     </ul>
   
     <!-- named callback functions work too.
          a callback's output is inserted into the template at the 
-         spot where it was passed to it's async function -->
+         spot where it was passed to its async function -->
   
-    <p>
-      <% setTimeout(async2, 1000) %>
-    </p>
+    <p> <% setTimeout(async2, 100) %> </p>
 
     <!-- callbacks can be used multiple times -->
   
-    <% setTimeout(async2, 1000) %>
+    <% setTimeout(async2, 100) %>
   
     <!-- other AJS partials can be embedded using the "include" function -->
   
-    <% include('includes/partial') %>
+    <% include('partials/message', {text: "Hello world!"}) %>
   
-    <p><%= 'any statement can be written - ' + (6 + 6) %></p>
+    <p><%= 'any statement can be printed - ' + (6 + 6) %></p>
   </body>
 </html>
+````
 
+partials/message.ajs:
+
+```` erb
+<div><%= text %></div>
 ````
 
 ## Usage

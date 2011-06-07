@@ -7,4 +7,5 @@ config/*.json
 logs/*.log
 pids/*.pid
 tmp/*
+docs/*
 experiment
