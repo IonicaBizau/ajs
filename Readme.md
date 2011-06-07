@@ -10,10 +10,6 @@
 $ npm install ajs
 ````
 
-## Annotated Source
-
-http://kainosnoema.github.com/ajs
-
 ## Usage
 
 AJS is [Connect](http://github.com/senchalabs/connect) middleware:
@@ -147,6 +143,10 @@ partials/message.ajs:
 ```` erb
 <div><%= text %></div>
 ````
+
+## Annotated Source
+
+http://kainosnoema.github.com/ajs
 
 ## Authors
 
