@@ -78,23 +78,42 @@ partials/message.ajs:
 
 ## Usage
 
-For now, there's a binary that simply prints the result to stdout:
+AJS is [Connect](http://github.com/senchalabs/connect) middleware:
 
-```` bash
-$ ajs index.ajs
+```` javascript
+var connect = require('connect')
+  , ajs = require('../../lib/ajs');
+
+var server = connect.createServer()
+                    .use(ajs({dir: './views'}))
+                    .use(function(req, res) {
+                      res.render('index', {title: "Hello World!"});
+                    });
 ````
 
-Use the -t and -s options to view the abstracted syntax tree and compiled source:
+views/index.ajs:
 
-```` bash
-$ ajs -t index.ajs
-  ...
-$ ajs -s index.ajs
-  ...
+```` erb
+<html>
+  <head>
+    <title><%= title %></title>
+  </head>
+  <body>
+    <h1><%= title %></h1>
+  </body>
+</html>
 ````
 
-    
-    
+For lower-level access to AJS, simply require the template file, bind to its `data`, `error` and `end` events, and call `.render(<context>)`, passing it an optional context object:
+
+```` javascript
+var template = require('views/index');
+template.on('data', function(data) {
+  console.log(data);
+})
+template.render({title: 'Hello World!'});
+````
+
 ## Authors
 
   * Evan Owen

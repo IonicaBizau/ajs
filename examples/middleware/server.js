@@ -1,4 +1,5 @@
-var ajs = require('../../lib/ajs');
+var connect = require('connect')
+  , ajs = require('../../lib/ajs');
 
 
 var dbCall = function(viewCallback) {
@@ -11,11 +12,11 @@ var dbCall = function(viewCallback) {
   }, 50);
 }
 
-var server = require('connect').createServer()
-                               .use(ajs())
-                               .use(function(req, res) {
-                                 res.render('index', {title: "Hello World!", dbCall: dbCall});
-                               });
+var server = connect.createServer()
+                    .use(ajs())
+                    .use(function(req, res) {
+                      res.render('index', {title: "Hello World!", dbCall: dbCall});
+                    });
 
 if (!module.parent) {
   var port = process.argv[2] || 3000;
