@@ -4,6 +4,12 @@
  AJS is an experimental asyncronous templating language for [Node](http://nodejs.org).
  It's currently a work in progress, but Connect middleware is already functional.
 
+## Installation
+
+```` bash
+$ npm install ajs
+````
+
 ## Annotated Source
 
 http://kainosnoema.github.com/ajs
