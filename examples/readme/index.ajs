@@ -25,7 +25,7 @@
     <p>
       <% setTimeout(function() { %>
       <%= 'async 1 done' %>
-      <% }, 10 ) %>
+      <% }, 100 ) %>
     </p>
   
     <!-- native array callback functions are exempt from the
@@ -44,11 +44,11 @@
          a callback's output is inserted into the template at the 
          spot where it was passed to its async function -->
   
-    <p> <% setTimeout(async2, 100) %> </p>
+    <p> <% setTimeout(async2, 1000) %> </p>
 
     <!-- callbacks can be used multiple times -->
   
-    <% setTimeout(async2, 100) %>
+    <% setTimeout(async2, 1000) %>
   
     <!-- other AJS partials can be embedded using the "include" function -->
   

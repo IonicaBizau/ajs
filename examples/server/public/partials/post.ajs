@@ -1,4 +1,4 @@
 <div class="post" id="<%= id %>">
   <h3><a href="#"><%= title %></a></h3>
-  <%= body %>
+  <%- body %>
 </div>

@@ -13,7 +13,7 @@ var getPosts = function(viewCallback) {
 }
 
 var server = connect.createServer()
-                    .use(ajs())
+                    .use(ajs({dir: './views'}))
                     .use(connect.static('./public'))
                     .use(function(req, res) {
                       res.render('index', {title: "Hello World!", getPosts: getPosts});

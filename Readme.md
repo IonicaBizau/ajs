@@ -50,7 +50,7 @@ views/index.ajs:
           posts.forEach(function(post) { %>
             <div class="post">
               <h3><a href="#"><%= post.title %></a></h3>
-              <%= post.body %>
+              <%- post.body %>
             </div>
           <%});
         } else { %>
