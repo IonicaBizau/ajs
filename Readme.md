@@ -4,6 +4,10 @@
  AJS is an experimental asyncronous templating language for [Node](http://nodejs.org).
  It's currently a work in progress, but Connect middleware is already functional.
 
+## Annotated Source
+
+http://kainosnoema.github.com/ajs
+
 ## Example
 
 index.ajs:
@@ -113,10 +117,6 @@ template.on('data', function(data) {
 })
 template.render({title: 'Hello World!'});
 ````
-
-## Annotated Source / Documentation
-
-http://kainosnoema.github.com/ajs
 
 ## Authors
 
