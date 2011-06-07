@@ -17,7 +17,7 @@ AJS is [Connect](http://github.com/senchalabs/connect) middleware:
 ```` javascript
 var connect = require('connect')
   , mysql   = new (require('mysql').Client)
-  , ajs     = require('../../lib/ajs');
+  , ajs     = require('ajs');
 
 mysql.user = 'dbuser';
 mysql.password = 'passwd';
