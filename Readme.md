@@ -92,12 +92,22 @@ AJS is [Connect](http://github.com/senchalabs/connect) middleware:
 
 ```` javascript
 var connect = require('connect')
-  , ajs = require('../../lib/ajs');
+  , mysql   = new (require('mysql').Client)
+  , ajs     = require('../../lib/ajs');
+
+mysql.user = 'dbuser';
+mysql.password = 'passwd';
+mysql.connect();
+mysql.useDatabase('blog');
+  
+var getPosts = function(viewCallback) {
+  mysql.query("select * from posts", viewCallback);
+}
 
 var server = connect.createServer()
                     .use(ajs({dir: './views'}))
                     .use(function(req, res) {
-                      res.render('index', {title: "Hello World!"});
+                      res.render('index', {title: "Hello World!", getPosts: getPosts});
                     });
 ````
 
@@ -110,6 +120,20 @@ views/index.ajs:
   </head>
   <body>
     <h1><%= title %></h1>
+    <div id="posts">
+      <% getPosts(function(err, posts) {
+        if(posts) {
+          posts.forEach(function(post) { %>
+            <div class="post">
+              <h3><a href="#"><%= post.title %></a></h3>
+              <%= post.body %>
+            </div>
+          <%});
+        } else { %>
+          An error occured while trying to load the posts.
+        <% }
+      }) %>
+    </div>
   </body>
 </html>
 ````

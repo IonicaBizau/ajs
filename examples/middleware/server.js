@@ -2,7 +2,7 @@ var connect = require('connect')
   , ajs = require('../../lib/ajs');
 
 
-var dbCall = function(viewCallback) {
+var getPosts = function(viewCallback) {
   setTimeout(function() {
     viewCallback(null, [
       {id: 1, title: '10 Quick Photography Tips', body: '<p>Some Sample Text</p>'}
@@ -14,8 +14,9 @@ var dbCall = function(viewCallback) {
 
 var server = connect.createServer()
                     .use(ajs())
+                    .use(connect.static('./public'))
                     .use(function(req, res) {
-                      res.render('index', {title: "Hello World!", dbCall: dbCall});
+                      res.render('index', {title: "Hello World!", getPosts: getPosts});
                     });
 
 if (!module.parent) {

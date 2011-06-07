@@ -1,15 +1,23 @@
 <html>
   <head>
     <title><%= title %></title>
+    <link rel="stylesheet" href="css/site.css" />
   </head>
   <body>
-    <h3>Here's our data:</h3>
-
-<% dbCall(function(err, posts) {
-     posts.forEach(function(post) {%>
-       <%= post.title %><br/>
-<%   });
-   }); %>
-
+    <h1>Blog Home</h1>
+    <div id="posts">
+<% getPosts(function(err, posts) {
+  if(posts) {
+    posts.forEach(function(post) { %>
+      <div class="post">
+        <h3><a href="#"><%= post.title %></a></h3>
+        <%= post.body %>
+      </div>
+    <%});
+  } else { %>
+    An error occured while trying to load the posts.
+  <% }
+}) %>
+    </div>
   </body>
 </html>
