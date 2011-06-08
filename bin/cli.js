@@ -3,8 +3,7 @@
 var fs     = require('fs')
   , path   = require('path')
   , util   = require('util')
-  , Loader = require('../lib/loader')
-  , VM     = require('../lib/VM');
+  , AJS    = require('../lib/ajs');
 
 // node-cli clobbers process.argv. argh.
 var argv = Array.prototype.slice.call(process.argv);
@@ -19,24 +18,24 @@ cli.parse({
 cli.main(function (args, opts) {
   var filename = args[0]
     , base   = path.join(filename);
-  Loader.load(filename, opts, function(err, compiled) {
+  AJS._load(filename, opts, function(err, template) {
     if(err) return console.error(err.stack);
     
     if(opts.tree)
-      return util.print(util.inspect(compiled, false, 100)  + "\n");
+      return util.print(util.inspect(template, false, 100)  + "\n");
     else if(opts.source)
-      return util.print(compiled  + "\n");
+      return util.print(template  + "\n");
       
-    try {
-      new VM(compiled, {filename: filename})
-      .on('data', function(data) {
-        util.print(data);
-      }).on('end', function() {
-        console.log();
-      }).render();
-    } catch (err) {
-      err.message = "In " + filename + ", " + err.message;
-      throw err;
-    }
+    template()
+    .on('data', function(data) {
+      util.print(data);
+    })
+    .on('error', function(err) {
+      console.error();
+      console.error(err.stack);
+    })
+    .on('end', function() {
+      console.log();
+    });
   });
 });

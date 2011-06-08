@@ -1,9 +1,10 @@
 
 # AJS
 
- AJS is an experimental asyncronous templating language for [Node](http://nodejs.org).
- Currently a work in progress, but Connect middleware is functional.
-
+AJS is an experimental asyncronous templating language for [Node](http://nodejs.org). Currently a work in progress, but Connect middleware is functional.
+ 
+AJS is currently **NOT** compatible with the [ExpressJS](http://expressjs.com) view system due to its syncronous handling of [template engines](https://github.com/visionmedia/express/blob/master/lib/view.js#L421) and [responses](https://github.com/visionmedia/express/blob/master/lib/response.js#L115).
+ 
 ## Installation
 
 ```` bash
@@ -62,14 +63,13 @@ views/index.ajs:
 </html>
 ````
 
-For lower-level access, simply require the template file, bind to its `data`, `error` and `end` events, and call `.render(<context>)`, passing it an optional context object:
+For lower-level access to an AJS template, simply require it, call it with a locals object `template(<locals>)`, and bind to its `data`, `error` and `end` events.
 
 ```` javascript
 var template = require('views/index');
-template.on('data', function(data) {
+template({title: 'Hello World!'}).on('data', function(data) {
   console.log(data);
-})
-template.render({title: 'Hello World!'});
+});
 ````
 
 ## Syntax
