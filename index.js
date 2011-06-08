@@ -14,7 +14,7 @@ module.exports = require('./lib/ajs');
 // [ajs.js](ajs.html)
 // -------------
 
-// [vm.js](vm.html)
+// [template.js](template.html)
 // -------------
 
 // [compiler.js](compiler.html)
