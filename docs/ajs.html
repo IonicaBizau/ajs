@@ -4,7 +4,7 @@
   <span class="p">,</span> <span class="nx">Cache</span>    <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;./cache&#39;</span><span class="p">);</span></pre></div>             </td>           </tr>                               <tr id="section-2">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-2">&#182;</a>               </div>               <p>If you need lower-level access to an AJS template, simply require it, call it
 with a locals object <code>template(&lt;locals&gt;)</code>, and bind to its <code>data</code>,
 <code>error</code> and <code>end</code> events.</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="nx">require</span><span class="p">.</span><span class="nx">extensions</span><span class="p">[</span><span class="s1">&#39;.ajs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">module</span><span class="p">,</span> <span class="nx">filename</span><span class="p">)</span> <span class="p">{</span>
-  <span class="nx">module</span><span class="p">.</span><span class="nx">exports</span> <span class="o">=</span> <span class="nx">Loader</span><span class="p">.</span><span class="nx">loadSync</span><span class="p">(</span><span class="nx">filename</span><span class="p">);</span>
+  <span class="nx">module</span><span class="p">.</span><span class="nx">exports</span> <span class="o">=</span> <span class="nx">AJS</span><span class="p">.</span><span class="nx">_loadSync</span><span class="p">(</span><span class="nx">filename</span><span class="p">);</span>
   <span class="k">return</span> <span class="nx">module</span><span class="p">;</span>
 <span class="p">};</span></pre></div>             </td>           </tr>                               <tr id="section-3">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-3">&#182;</a>               </div>               <h2>AJS</h2>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-4">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-4">&#182;</a>               </div>               <p>The main AJS export is a Connect middleware function. By adding <code>ajs()</code> to your stack,
 any middleware down the line will have a <code>res.render('/path', &lt;locals&gt;)</code>
@@ -126,6 +126,27 @@ with a compiled template function if successful or an error if not. </p>        
       <span class="p">});</span>
     <span class="p">}</span>
   <span class="p">});</span>
+<span class="p">}</span>
+
+<span class="nx">AJS</span><span class="p">.</span><span class="nx">_loadSync</span> <span class="o">=</span> <span class="kd">function</span> <span class="nx">loadSync</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span> <span class="nx">opts</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">opts</span> <span class="o">=</span> <span class="nx">opts</span> <span class="o">||</span> <span class="p">{};</span>
+  
+  <span class="kd">var</span> <span class="nx">template</span>
+    <span class="p">,</span> <span class="nx">cache</span> <span class="o">=</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">opts</span><span class="p">.</span><span class="nx">cache</span> <span class="o">!=</span> <span class="s1">&#39;undefined&#39;</span><span class="p">)</span> <span class="o">?</span> <span class="nx">opts</span><span class="p">.</span><span class="nx">cache</span> <span class="o">:</span> <span class="kc">true</span><span class="p">;</span>
+  
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">cache</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="nx">cached</span> <span class="o">=</span> <span class="nx">Cache</span><span class="p">.</span><span class="nx">getSync</span><span class="p">(</span><span class="nx">filename</span><span class="p">)))</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">cached</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+      <span class="nx">opts</span><span class="p">.</span><span class="nx">filename</span> <span class="o">=</span> <span class="nx">filename</span><span class="p">;</span>
+      <span class="nx">template</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Template</span><span class="p">(</span><span class="nx">fs</span><span class="p">.</span><span class="nx">readFileSync</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span> <span class="s1">&#39;utf8&#39;</span><span class="p">),</span> <span class="nx">opts</span><span class="p">);</span>
+      <span class="nx">Cache</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span> <span class="nx">template</span><span class="p">);</span>
+      <span class="k">return</span> <span class="nx">template</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span> <span class="k">catch</span><span class="p">(</span><span class="nx">e</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">e</span><span class="p">.</span><span class="nx">message</span> <span class="o">=</span> <span class="s2">&quot;In &quot;</span> <span class="o">+</span> <span class="nx">filename</span> <span class="o">+</span> <span class="s2">&quot;, &quot;</span> <span class="o">+</span> <span class="nx">e</span><span class="p">.</span><span class="nx">message</span><span class="p">;</span>
+    <span class="k">throw</span> <span class="nx">e</span><span class="p">;</span>
+  <span class="p">}</span>
 <span class="p">}</span>
 
 <span class="kd">function</span> <span class="nx">normalizeFilename</span><span class="p">(</span><span class="nx">path</span><span class="p">)</span> <span class="p">{</span>
