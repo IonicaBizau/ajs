@@ -1,7 +1,7 @@
 { "name"        : "ajs"
 , "description" : "Experimental asyncronous templating in Node"
 , "keywords"    : ["ajs", "ejs", "template", "view", "asyncronous"]
-, "version"     : "0.0.3"
+, "version"     : "0.0.4"
 , "author"      : "Evan Owen <kainosnoema@gmail.com>"
 , "main"        : "index"
 , "dependencies":
