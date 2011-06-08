@@ -1,4 +1,4 @@
-//     AJS 0.0.1
+//     AJS 0.0.3
 //     (c) 2011 Evan Owen, LifeKraze LLC.
 //     AJS may be freely distributed under the MIT license.
 //     For details and documentation:
