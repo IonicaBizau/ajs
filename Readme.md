@@ -1,9 +1,9 @@
 
 # AJS
 
-AJS is an experimental asyncronous templating language for [Node](http://nodejs.org).
+AJS is an experimental asyncronous templating language for [Node](http://nodejs.org). [Introduction at DevChatt 2011](http://www.slideshare.net/kainosnoema/ajs-asynchronous-templating-in-node).
 
-NOTE: While AJS includes Connect middleware, it's currently **NOT** compatible with the [ExpressJS](http://expressjs.com) view system due to its synchronous handling of [template engines](https://github.com/visionmedia/express/blob/master/lib/view.js#L421) and [responses](https://github.com/visionmedia/express/blob/master/lib/response.js#L115).
+NOTE: While AJS includes Connect middleware, it's currently not compatible with the [ExpressJS](http://expressjs.com) view system due to its synchronous handling of [template engines](https://github.com/visionmedia/express/blob/master/lib/view.js#L421) and [responses](https://github.com/visionmedia/express/blob/master/lib/response.js#L115).
  
 ## Installation
 
