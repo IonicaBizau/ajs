@@ -1,9 +1,9 @@
 
 # AJS
 
-AJS is an experimental asyncronous templating language for [Node](http://nodejs.org). Currently a work in progress, but Connect middleware is functional.
- 
-AJS is currently **NOT** compatible with the [ExpressJS](http://expressjs.com) view system due to its syncronous handling of [template engines](https://github.com/visionmedia/express/blob/master/lib/view.js#L421) and [responses](https://github.com/visionmedia/express/blob/master/lib/response.js#L115).
+AJS is an experimental asyncronous templating language for [Node](http://nodejs.org).
+
+While AJS includes Connect middleware, it's currently **NOT** compatible with the [ExpressJS](http://expressjs.com) view system due to its syncronous handling of [template engines](https://github.com/visionmedia/express/blob/master/lib/view.js#L421) and [responses](https://github.com/visionmedia/express/blob/master/lib/response.js#L115).
  
 ## Installation
 
@@ -13,7 +13,7 @@ $ npm install ajs
 
 ## Usage
 
-AJS is [Connect](http://github.com/senchalabs/connect) middleware:
+AJS includes [Connect](http://github.com/senchalabs/connect) middleware:
 
 ```` javascript
 var connect = require('connect')
