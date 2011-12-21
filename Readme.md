@@ -3,7 +3,7 @@
 
 AJS is an experimental asyncronous templating language for [Node](http://nodejs.org).
 
-**Note:** This project has been abandoned. The syntax is messy and it's just too hard to use in practice. For some actually useful asynchrounous templating, look at [Kernel](https://github.com/c9/kernel) and [dust.js](https://github.com/akdubya/dustjs).
+**Note: This project has been abandoned. The syntax is messy and it's just too hard to use in practice. For reasonably usable async templating, look at [Kernel](https://github.com/c9/kernel) and [dust.js](https://github.com/akdubya/dustjs).**
 
 ## Installation
 
