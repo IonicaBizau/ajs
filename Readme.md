@@ -1,3 +1,4 @@
+[![build status](https://secure.travis-ci.org/kainosnoema/ajs.png)](http://travis-ci.org/kainosnoema/ajs)
 
 # AJS
 
