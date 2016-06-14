@@ -1,15 +1,31 @@
-{ "name"        : "ajs"
-, "description" : "Experimental asyncronous templating in Node"
-, "keywords"    : ["ajs", "ejs", "template", "view", "asyncronous"]
-, "version"     : "0.0.4"
-, "author"      : "Evan Owen <kainosnoema@gmail.com>"
-, "main"        : "index"
-, "dependencies":
-  { "cli"       : ">= 0.3.6 < 0.5.0"
-  , "connect"   : ">= 1.3.0 < 1.5.0"
+{
+  "name": "ajs",
+  "description": "Experimental asyncronous templating in Node",
+  "keywords": [
+    "ajs",
+    "ejs",
+    "template",
+    "view",
+    "asyncronous"
+  ],
+  "version": "0.0.4",
+  "author": "Evan Owen <kainosnoema@gmail.com>",
+  "main": "index",
+  "dependencies": {
+    "cli": ">= 0.3.6 < 0.5.0",
+    "connect": ">= 1.3.0 < 1.5.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/kainosnoema/ajs.git"
+  },
+  "bin": {
+    "ajs": "./bin/cli.js"
+  },
+  "engines": {
+    "node": ">=0.4.6"
+  },
+  "devDependencies": {
+    "ejs": "^2.4.2"
   }
-, "repository"  : { "type" : "git"
-                  , "url"  : "http://github.com/kainosnoema/ajs.git" }
-, "bin"         : { "ajs"  : "./bin/cli.js" }
-, "engines"     : { "node" : ">=0.4.6" }
 }
