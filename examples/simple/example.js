@@ -1,6 +1,6 @@
 const ajs = require('../..');
-var str = `<% posts.forEach(function (c) { %>
-    - <%= c -%>
+var str = `<% posts.forEach(function (c) { -%>
+    <%= c -%>s are great
 <% }) %>`;
 
 ajs.render(str, {
