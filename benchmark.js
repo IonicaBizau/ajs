@@ -22,7 +22,7 @@ function ejsTest() {
   console.log('rendering EJS ' + ejs_times + ' times');
   var ejsStart = new Date;
   while(ejs_times--) {
-    ejs.render(str, { cache: true, filename: 'test', locals: { foo: 'bar' }});
+    ejs.render(str, { foo: 'bar' });
   }
   console.log('EJS took ' + (new Date - ejsStart) + 'ms');
   longTest();
@@ -30,14 +30,14 @@ function ejsTest() {
 
 function longTest() {
   console.log();
-  
+
   var template = [];
   while(times--) {
     template.push(str);
   }
-  
+
   template = template.join('');
-  
+
   // AJS benchmark (one very long)
   console.log('rendering very long AJS');
   var ajsStart2 = new Date;
@@ -50,7 +50,7 @@ function longTest() {
   function ejsLongTest() {
     console.log('rendering very long EJS');
     var ejsStart2 = new Date;
-    var result = ejs.render(template, { cache: true, filename: 'test2', locals: { foo: 'bar' }});
+    var result = ejs.render(template, { foo: 'bar' });
     console.log('EJS took ' + (new Date - ejsStart2) + 'ms');
   }
 }
