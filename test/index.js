@@ -11,6 +11,7 @@ const tester = require("tester")
 tester.describe("ajs", t => {
     let tree = fsTree.sync(`${__dirname}/specs`, { camelCase: true })
     iterateObject(tree, (files, name) => {
+        if (name.startsWith("_")) { return; }
         t.should(`handle ${name} cases`, cb => {
             ajs.render(readFile(files.inputAjs.path), {
                 filename: Math.random() + ".js"
