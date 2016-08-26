@@ -25,7 +25,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "http://github.com/kainosnoema/ajs.git"
+    "url": "git+ssh://git@github.com/kainosnoema/ajs.git"
   },
   "bin": {
     "ajs": "./bin/cli.js"
@@ -40,24 +40,34 @@
   },
   "blah": {
     "description": [
-        { "h2": "Features" },
-        {
-            "ul": [
-               "Control flow with `<% %>`",
-               "Escaped output with `<%= %>` (escape function configurable)",
-               "Unescaped raw output with `<%- %>`",
-               "Newline-trim mode ('newline slurping') with `-%>` ending tag",
-               "Custom delimiters (e.g., use `<? ?>` instead of `<% %>`)",
-               "Includes",
-               "Static caching of intermediate JavaScript",
-               "Static caching of templates",
-               "Complies with the [Express](http://expressjs.com) view system"
-            ]
-        }
+      {
+        "h2": "Features"
+      },
+      {
+        "ul": [
+          "Control flow with `<% %>`",
+          "Escaped output with `<%= %>` (escape function configurable)",
+          "Unescaped raw output with `<%- %>`",
+          "Newline-trim mode ('newline slurping') with `-%>` ending tag",
+          "Custom delimiters (e.g., use `<? ?>` instead of `<% %>`)",
+          "Includes",
+          "Static caching of intermediate JavaScript",
+          "Static caching of templates",
+          "Complies with the [Express](http://expressjs.com) view system"
+        ]
+      }
     ],
     "thanks": {
-        "p": "Big thanks to [Evan Owen](https://github.com/kainosnoema) who created the initial versions of the project! Amazing stuff! :cake:"
+      "p": "Big thanks to [Evan Owen](https://github.com/kainosnoema) who created the initial versions of the project! Amazing stuff! :cake:"
     }
   },
-  "license": "MIT"
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kainosnoema/ajs/issues"
+  },
+  "homepage": "https://github.com/kainosnoema/ajs#readme",
+  "directories": {
+    "example": "examples",
+    "test": "test"
+  }
 }
