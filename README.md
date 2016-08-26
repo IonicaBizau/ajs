@@ -1,9 +1,11 @@
 
+[![ajs](http://i.imgur.com/nQiOz0E.png)](#)
+
 # `$ ajs`
 
  [![PayPal](https://img.shields.io/badge/%24-paypal-f39c12.svg)][paypal-donations] [![AMA](https://img.shields.io/badge/ask%20me-anything-1abc9c.svg)](https://github.com/IonicaBizau/ama) [![Version](https://img.shields.io/npm/v/ajs.svg)](https://www.npmjs.com/package/ajs) [![Downloads](https://img.shields.io/npm/dt/ajs.svg)](https://www.npmjs.com/package/ajs) [![Get help on Codementor](https://cdn.codementor.io/badges/get_help_github.svg)](https://www.codementor.io/johnnyb?utm_source=github&utm_medium=button&utm_term=johnnyb&utm_campaign=github)
 
-> Asyncronous templating in Node.js
+> Asynchronous templating in Node.js
 
 ## Features
 
@@ -33,7 +35,23 @@ Then, run `ajs --help` and see what the CLI tool can do.
 
 ```
 $ ajs --help
+Usage: ajs [options]
 
+Asynchronous templating in Node.js
+
+Options:
+  -t, --tree             Output the abstract syntax tree
+  -s, --source           Output the raw VM source
+  -l, --locals <locals>  The template data as JSON.
+  -v, --version          Displays version information.
+  -h, --help             Displays this help.
+
+Examples:
+  $ ajs template.ajs
+  $ ajs -t template.ajs
+  $ ajs -s template.ajs
+
+Documentation can be found at https://github.com/kainosnoema/ajs#readme.
 ```
 
 ## :clipboard: Example

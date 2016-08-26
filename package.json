@@ -3,13 +3,13 @@
     "test": "node test/index.js"
   },
   "name": "ajs",
-  "description": "Asyncronous templating in Node.js",
+  "description": "Asynchronous templating in Node.js",
   "keywords": [
     "ajs",
     "ejs",
     "template",
     "view",
-    "asyncronous"
+    "asynchronous"
   ],
   "version": "1.0.0",
   "author": "Ionică Bizău <bizauionica@gmail.com> (http://ionicabizau.net)",
@@ -60,7 +60,8 @@
     ],
     "thanks": {
       "p": "Big thanks to [Evan Owen](https://github.com/kainosnoema) who created the initial versions of the project! Amazing stuff! :cake:"
-    }
+    },
+    "h_img": "http://i.imgur.com/nQiOz0E.png"
   },
   "license": "MIT",
   "bugs": {
