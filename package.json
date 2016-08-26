@@ -3,7 +3,7 @@
     "test": "node test/index.js"
   },
   "name": "ajs",
-  "description": "Experimental asyncronous templating in Node",
+  "description": "Asyncronous templating in Node.js",
   "keywords": [
     "ajs",
     "ejs",
@@ -12,7 +12,10 @@
     "asyncronous"
   ],
   "version": "0.0.4",
-  "author": "Evan Owen <kainosnoema@gmail.com>",
+  "author": "Ionică Bizău <bizauionica@gmail.com> (http://ionicabizau.net)",
+  "contributors": [
+    "Evan Owen <kainosnoema@gmail.com>"
+  ],
   "main": "./lib/index.js",
   "dependencies": {
     "cli": ">= 0.3.6 < 0.5.0",
@@ -27,9 +30,6 @@
   "bin": {
     "ajs": "./bin/cli.js"
   },
-  "engines": {
-    "node": ">=0.4.6"
-  },
   "devDependencies": {
     "ejs": "^2.4.2",
     "fs-file-tree": "^1.0.0",
@@ -37,5 +37,27 @@
     "r-json": "^1.2.3",
     "read-utf8": "^1.2.3",
     "tester": "^1.3.4"
-  }
+  },
+  "blah": {
+    "description": [
+        { "h2": "Features" },
+        {
+            "ul": [
+               "Control flow with `<% %>`",
+               "Escaped output with `<%= %>` (escape function configurable)",
+               "Unescaped raw output with `<%- %>`",
+               "Newline-trim mode ('newline slurping') with `-%>` ending tag",
+               "Custom delimiters (e.g., use `<? ?>` instead of `<% %>`)",
+               "Includes",
+               "Static caching of intermediate JavaScript",
+               "Static caching of templates",
+               "Complies with the [Express](http://expressjs.com) view system"
+            ]
+        }
+    ],
+    "thanks": {
+        "p": "Big thanks to [Evan Owen](https://github.com/kainosnoema) who created the initial versions of the project! Amazing stuff! :cake:"
+    }
+  },
+  "license": "MIT"
 }
