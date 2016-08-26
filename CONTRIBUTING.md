@@ -61,6 +61,6 @@ Thanks! :sweat_smile:
 
 
 
-[1]: https://github.com/kainosnoema/ajs/issues
+[1]: https://github.com/IonicaBizau/ajs/issues
 
 [2]: https://github.com/IonicaBizau/code-style

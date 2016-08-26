@@ -51,7 +51,7 @@ Examples:
   $ ajs -t template.ajs
   $ ajs -s template.ajs
 
-Documentation can be found at https://github.com/kainosnoema/ajs#readme.
+Documentation can be found at https://github.com/IonicaBizau/ajs#readme.
 ```
 
 ## :clipboard: Example

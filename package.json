@@ -26,7 +26,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/kainosnoema/ajs.git"
+    "url": "git+ssh://git@github.com/IonicaBizau/ajs.git"
   },
   "bin": {
     "ajs": "./bin/cli.js"
@@ -65,9 +65,9 @@
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/kainosnoema/ajs/issues"
+    "url": "https://github.com/IonicaBizau/ajs/issues"
   },
-  "homepage": "https://github.com/kainosnoema/ajs#readme",
+  "homepage": "https://github.com/IonicaBizau/ajs#readme",
   "directories": {
     "example": "examples",
     "test": "test"
