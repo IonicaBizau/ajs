@@ -1,0 +1,3 @@
+<% posts.forEach(function (c) { -%>
+ - <%= c -%>s are great
+<% }) %>
