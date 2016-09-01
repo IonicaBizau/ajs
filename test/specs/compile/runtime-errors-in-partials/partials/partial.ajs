@@ -1,0 +1,2 @@
+Content from partial.
+<% include('foo/bar') -%>

@@ -6,6 +6,7 @@ const tester = require("tester")
     , iterateObject = require("iterate-object")
     , readFile = require("read-utf8")
     , readJson = require("r-json")
+    , isThere = require("is-there")
     ;
 
 tester.describe("ajs", t => {
@@ -32,9 +33,14 @@ tester.describe("ajs", t => {
                 t.expect(err).toBe(null);
                 t.expect(templ).toBeA("function");
                 templ(require(files.inputJs.path), (err, data) => {
-                err && console.log(err.stack);
-                    t.expect(err).toBe(null);
-                    t.expect(data).toBe(readFile(files.outputHtml.path));
+                    if (files.errorTxt) {
+                        t.expect(err).toNotBe(null);
+                        t.expect(err.message.includes(readFile(files.errorTxt.path).trim())).toBe(true);
+                    } else {
+                        err && console.log(err.stack);
+                        t.expect(err).toBe(null);
+                        t.expect(data).toBe(readFile(files.outputHtml.path));
+                    }
                     cb();
                 });
             });
