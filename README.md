@@ -117,11 +117,6 @@ Have an idea? Found a bug? See [how to contribute][contributing].
 Big thanks to [Evan Owen](https://github.com/kainosnoema) who created the initial versions of the project! Amazing stuff! :cake:
 
 
-## :dizzy: Where is this library used?
-If you are using this library in one of your projects, add it in this list. :sparkles:
-
-
- - [`ajs-xgettext`](https://npmjs.com/package/ajs-xgettext) (by Duane Griffin)—Extract localised text from AJS templates
 
 ## :scroll: License
 
