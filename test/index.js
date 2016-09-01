@@ -16,6 +16,7 @@ tester.describe("ajs", t => {
             ajs.render(readFile(files.inputAjs.path), {
                 locals: require(files.inputJs.path)
             }, (err, data) => {
+                err && console.log(err.stack);
                 t.expect(err).toBe(null);
                 t.expect(data).toBe(readFile(files.outputHtml.path));
                 cb();
@@ -27,9 +28,11 @@ tester.describe("ajs", t => {
         if (name.startsWith("_")) { return; }
         t.should(`compile ${name} cases`, cb => {
             ajs.compileFile(files.inputAjs.path, (err, templ) => {
+                err && console.log(err.stack);
                 t.expect(err).toBe(null);
                 t.expect(templ).toBeA("function");
                 templ(require(files.inputJs.path), (err, data) => {
+                err && console.log(err.stack);
                     t.expect(err).toBe(null);
                     t.expect(data).toBe(readFile(files.outputHtml.path));
                     cb();
@@ -41,6 +44,8 @@ tester.describe("ajs", t => {
     let templ = null;
     t.it("compile the file", cb => {
         ajs.compileFile(tree.stream.inputAjs.path, (err, template) => {
+            debugger
+                err && console.log(err.stack);
             templ = template;
             cb();
         });
@@ -48,6 +53,7 @@ tester.describe("ajs", t => {
 
     t.it("reuse the compiled result", cb => {
         templ(require(tree.stream.inputJs.path), (err, data) => {
+                err && console.log(err.stack);
             t.expect(data).toBe(readFile(tree.stream.outputHtml.path));
             cb();
         });
@@ -55,6 +61,7 @@ tester.describe("ajs", t => {
 
     t.it("reuse the compiled result again", cb => {
         templ(require(tree.stream.inputJs.path), (err, data) => {
+                err && console.log(err.stack);
             t.expect(data).toBe(readFile(tree.stream.outputHtml.path));
             cb();
         });
@@ -62,6 +69,7 @@ tester.describe("ajs", t => {
 
     t.it("reuse the compiled result again", cb => {
         templ(require(tree.stream.inputJs.path), (err, data) => {
+                err && console.log(err.stack);
             t.expect(data).toBe(readFile(tree.stream.outputHtml.path));
             cb();
         });
