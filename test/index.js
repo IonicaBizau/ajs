@@ -23,6 +23,14 @@ tester.describe("ajs", t => {
                 cb();
             });
         });
+        t.should("render " + name + " templates (renderFile)", function (cb) {
+            ajs.renderFile(files.inputAjs.path, require(files.inputJs.path), function (err, data) {
+                err && console.log(err.stack);
+                t.expect(err).toBe(null);
+                t.expect(data).toBe(readFile(files.outputHtml.path));
+                cb();
+            });
+        });
     });
 
     iterateObject(tree.compile, (files, name) => {
