@@ -60,6 +60,7 @@
         ]
       }
     ],
+    "generateLicense": false,
     "thanks": {
       "p": "Big thanks to [Evan Owen](https://github.com/kainosnoema) who created the initial versions of the project! Amazing stuff! :cake:"
     },
