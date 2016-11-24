@@ -42,6 +42,7 @@
     "tester": "^1.3.4"
   },
   "blah": {
+    "generateLicense": false,
     "description": [
       {
         "h2": "Features"
@@ -60,7 +61,6 @@
         ]
       }
     ],
-    "generateLicense": false,
     "thanks": {
       "p": "Big thanks to [Evan Owen](https://github.com/kainosnoema) who created the initial versions of the project! Amazing stuff! :cake:"
     },
