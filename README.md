@@ -133,7 +133,9 @@ If you are using this library in one of your projects, add it in this list. :spa
 
  - [`ajs-xgettext`](https://npmjs.com/package/ajs-xgettext) (by Duane Griffin)—Extract localised text from AJS templates
  - [`bloggify-ajs-renderer`](https://github.com/IonicaBizau/bloggify-ajs-renderer#readme)—ajs renderer for Bloggify.
+ - [`bloggify-icons`](https://github.com/Bloggify/bloggify-icons#readme)—The Bloggify icons for the web.
  - [`express-ajs`](https://github.com/IonicaBizau/express-ajs#readme)—Minimal example of how to use ajs in Express.
+ - [`git-stats-html`](https://github.com/IonicaBizau/git-stats-html#readme)—Turn git-stats result into HTML output.
 
 ## :scroll: License
 
@@ -143,7 +145,9 @@ If you are using this library in one of your projects, add it in this list. :spa
 [paypal-donations]: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=RVXDDLKKLQRJW
 [donate-now]: http://i.imgur.com/6cMbHOC.png
 
+
 [license]: http://showalicense.com/?fullname=Ionic%C4%83%20Biz%C4%83u%20%3Cbizauionica%40gmail.com%3E%20(http%3A%2F%2Fionicabizau.net)&year=2011#license-mit
+
 [website]: http://ionicabizau.net
 [contributing]: /CONTRIBUTING.md
 [docs]: /DOCUMENTATION.md
