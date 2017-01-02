@@ -4,10 +4,14 @@ const tester = require("tester")
     , ajs = require("..")
     , fsTree = require("fs-file-tree")
     , iterateObject = require("iterate-object")
-    , readFile = require("read-utf8")
+    , _readFile = require("read-utf8")
     , readJson = require("r-json")
     , isThere = require("is-there")
     ;
+
+function readFile (path) {
+  return _readFile(path).replace(/\r/g, "");
+}
 
 tester.describe("ajs", t => {
     let tree = fsTree.sync(`${__dirname}/specs`, { camelCase: true })

@@ -1,0 +1,8 @@
+<%
+    getFruits(function (fruits) {
+        fruits.forEach(function (c) { -%>
+ - <%= c -%>s are great
+<%
+        });
+    });
+%>
