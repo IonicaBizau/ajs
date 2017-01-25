@@ -1,0 +1,10 @@
+<%
+    user = {
+        name: {
+            first: "Johnny",
+            last: "B.",
+        }
+      , evil: "<script>alert()</script>"
+    };
+%>
+<%= JSON.stringify(user) %>

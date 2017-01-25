@@ -93,7 +93,6 @@ tester.describe("ajs", t => {
         });
     });
 
-
     t.it("handle streams", cb => {
         templ(require(tree.stream.inputJs.path)).on("data", chunk => {
             t.expect(chunk).toBeA("string");
