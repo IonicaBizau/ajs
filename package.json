@@ -11,8 +11,8 @@
     "view",
     "asynchronous"
   ],
-  "version": "1.2.6",
-  "author": "Ionică Bizău <bizauionica@gmail.com> (http://ionicabizau.net)",
+  "version": "1.2.7",
+  "author": "Ionică Bizău <bizauionica@gmail.com> (https://ionicabizau.net)",
   "contributors": [
     "Evan Owen <kainosnoema@gmail.com>"
   ],
@@ -79,12 +79,11 @@
     "bin/",
     "app/",
     "lib/",
-    "build/",
     "dist/",
     "src/",
+    "scripts/",
     "resources/",
     "menu/",
-    "scripts/",
     "cli.js",
     "index.js"
   ]
