@@ -9,7 +9,6 @@ The main `ajs` export is a Connect middleware function. By adding
 path and context object.
 
 #### Params
-
 - **Object** `opts`: An object containing the following fields:
  - `dir` (String): The path to the views directory (default: `./views`).
 
@@ -24,7 +23,6 @@ a data source and any utilities, and your entire app can live in your templates!
 If this reminds of you PHP, just remember you're asyncronous now.
 
 #### Params
-
 - **String** `rootDir`: The views directory.
 - **Object** `locals`: The data to pass.
 - **Object** `opts`: The render options.
@@ -39,7 +37,6 @@ and [responses](https://github.com/visionmedia/express/blob/master/lib/response.
 we can still support a similar API.
 
 #### Params
-
 - **String** `str`: The content to compile.
 - **Object** `opts`: An object containing the following fields:
  - `filename` (String): The filename of the compiled file. By default a random filename.
@@ -52,7 +49,6 @@ we can still support a similar API.
 Render the template content.
 
 #### Params
-
 - **String** `str`: The template content.
 - **Object** `opts`: The compile options.
 - **Function** `callback`: The callback function.
@@ -64,7 +60,6 @@ Render the template content.
 Renders a file.
 
 #### Params
-
 - **String** `path`: The path to the template file.
 - **Object** `opts`: The compile options.
 - **Function** `callback`: The callback function.
@@ -76,7 +71,6 @@ Otherwise, attempt to read and compile the file asyncronously, calling back
 with a compiled template function if successful or an error if not.
 
 #### Params
-
 - **String** `filename`: The path to the file.
 - **Object** `opts`: The compile options.
 - **Function** `callback`: The callback function.
@@ -85,7 +79,6 @@ with a compiled template function if successful or an error if not.
 Synchronous version of `ajs.compileFile`, used for `require()` support.
 
 #### Params
-
 - **String** `filename`: The path to the file.
 - **Object** `opts`: The compile options.
 

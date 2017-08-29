@@ -105,15 +105,13 @@ ajs.render(
 });
 ```
 
-
-
 ## :question: Get Help
 
 There are few ways to get help:
 
  1. Please [post questions on Stack Overflow](https://stackoverflow.com/questions/ask). You can open issues with questions, as long you add a link to your Stack Overflow question.
  2. For bug reports and feature requests, open issues. :bug:
- 3. For direct and quick help, you can [use Codementor](https://www.codementor.io/johnnyb). :rocket:
+ 3. For direct and quick help from me, you can [use Codementor](https://www.codementor.io/johnnyb). :rocket:
 
 
 ## :memo: Documentation
@@ -151,8 +149,9 @@ If you are using this library in one of your projects, add it in this list. :spa
 
 
  - [`ajs-xgettext`](https://npmjs.com/package/ajs-xgettext) (by Duane Griffin)—Extract localised text from AJS templates
- - [`bloggify-ajs-renderer`](https://github.com/IonicaBizau/bloggify-ajs-renderer#readme)—ajs renderer for Bloggify.
+ - [`bloggify-ajs-renderer`](https://github.com/Bloggify/ajs-renderer#readme) (by Bloggify)—ajs renderer for Bloggify.
  - [`bloggify-icons`](https://github.com/Bloggify/bloggify-icons#readme)—The Bloggify icons for the web.
+ - [`bloggify-renderer-ajs`](https://github.com/Bloggify/renderer-ajs#readme) (by Bloggify)—ajs renderer for Bloggify.
  - [`express-ajs`](https://github.com/IonicaBizau/express-ajs#readme)—Minimal example of how to use ajs in Express.
  - [`git-stats-html`](https://github.com/IonicaBizau/git-stats-html#readme)—Turn git-stats result into HTML output.
 
