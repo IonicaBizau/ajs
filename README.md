@@ -11,7 +11,6 @@
 
 ## Features
 
-
  - Control flow with `<% %>`
  - Escaped output with `<%= %>` (escape function configurable)
  - Unescaped raw output with `<%- %>`
