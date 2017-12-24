@@ -29,7 +29,11 @@ You can install the package globally and use it as command line tool:
 
 
 ```sh
-$ npm i -g ajs
+# Using npm
+npm install --global ajs
+
+# Using yarn
+yarn global add ajs
 ```
 
 
@@ -60,10 +64,14 @@ Documentation can be found at https://github.com/IonicaBizau/ajs#readme.
 ## :clipboard: Example
 
 
-Here is an example how to use this package as library. To install it locally, as library, you can do that using `npm`:
+Here is an example how to use this package as library. To install it locally, as library, you can do that using `npm` (or `yarn`):
 
 ```sh
-$ npm i --save ajs
+# Using npm
+npm install --save ajs
+
+# Using yarn
+yarn add ajs
 ```
 
 
