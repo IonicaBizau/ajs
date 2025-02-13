@@ -11,7 +11,7 @@
     "view",
     "asynchronous"
   ],
-  "version": "1.3.3",
+  "version": "1.3.4",
   "author": "Ionică Bizău <bizauionica@gmail.com> (https://ionicabizau.net)",
   "contributors": [
     "Evan Owen <kainosnoema@gmail.com>"
@@ -84,6 +84,8 @@
     "menu/",
     "cli.js",
     "index.js",
+    "index.d.ts",
+    "package-lock.json",
     "bloggify.js",
     "bloggify.json",
     "bloggify/"
